@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Offer a Ride') }}{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto bg-white rounded-xl shadow p-6">
+    <h2 class="text-2xl font-bold mb-4">{{ _('Offer a Ride') }}</h2>
+    <form id="offerRideForm" class="space-y-4">
+        <!-- same fields but with Tailwind styling -->
+        <div><label class="block">{{ _('Origin') }}</label><input type="text" name="origin" required class="w-full border rounded px-3 py-2"></div>
+        <div><label class="block">{{ _('Destination') }}</label><input type="text" name="destination" required class="w-full border rounded px-3 py-2"></div>
+        <div><label class="block">{{ _('Departure Date & Time') }}</label><input type="datetime-local" name="departure_datetime" required class="w-full border rounded px-3 py-2"></div>
+        <div><label class="block">{{ _('Available Seats') }}</label><input type="number" name="available_seats" min="1" required class="w-full border rounded px-3 py-2"></div>
+        <div><label class="block">{{ _('Price per Seat ($)') }}</label><input type="number" step="0.01" name="price_per_seat" min="0" required class="w-full border rounded px-3 py-2"></div>
+        <div><label class="block">{{ _('Recurring Days') }}</label><input type="text" name="recurring_days" placeholder="Mon,Wed,Fri" class="w-full border rounded px-3 py-2"></div>
+        <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded-lg">{{ _('Post Ride') }}</button>
+    </form>
+    <div id="result" class="mt-3"></div>
+</div>
+<script>
+    // same JS as before, just use fetch to /api/rides/api/create
+</script>
+{% endblock %}

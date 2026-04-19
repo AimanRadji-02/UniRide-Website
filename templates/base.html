@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="{{ session.get('lang', 'en') }}" dir="{{ 'rtl' if session.get('lang') == 'ar' else 'ltr' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>UniRide - {% block title %}{% endblock %}</title>
+    <!-- Tailwind CSS + Font Awesome (icons) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Leaflet CSS (for map templates) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Custom styles for RTL adjustments -->
+    <style>
+        body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif; }
+        .rtl .ml-2 { margin-left: 0; margin-right: 0.5rem; }
+        .rtl .mr-2 { margin-right: 0; margin-left: 0.5rem; }
+        .rtl .space-x-4 > :not([hidden]) ~ :not([hidden]) { --tw-space-x-reverse: 1; }
+        /* Leaflet map container */
+        #map { height: 400px; width: 100%; border-radius: 0.5rem; }
+    </style>
+    {% block head_extra %}{% endblock %}
+</head>
+<body class="bg-gray-50 {{ 'rtl' if session.get('lang') == 'ar' else '' }}">
+    <!-- Navbar -->
+    <nav class="bg-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-4 rtl:space-x-reverse">
+                    <a href="/" class="text-xl font-bold text-indigo-600"><i class="fas fa-car-side mr-2"></i>UniRide</a>
+                    {% if current_user.is_authenticated %}
+                        <div class="hidden md:flex space-x-4 rtl:space-x-reverse">
+                            {% if current_user.role == 'driver' %}
+                                <a href="{{ url_for('ride.offer_ride_page') }}" class="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">
+                                    <i class="fas fa-plus-circle"></i> {{ _('Offer Ride') }}
+                                </a>
+                            {% endif %}
+                            {% if current_user.role == 'passenger' %}
+                                <a href="{{ url_for('ride.search_rides_page') }}" class="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">
+                                    <i class="fas fa-search"></i> {{ _('Search Rides') }}
+                                </a>
+                            {% endif %}
+                            <a href="{{ url_for('booking.my_bookings_page') }}" class="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">
+                                <i class="fas fa-ticket-alt"></i> {{ _('My Bookings') }}
+                            </a>
+                            <a href="{{ url_for('wallet.wallet_page') }}" class="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">
+                                <i class="fas fa-wallet"></i> {{ _('Wallet') }}
+                            </a>
+                            {% if current_user.role == 'admin' %}
+                                <a href="{{ url_for('admin.dashboard') }}" class="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">
+                                    <i class="fas fa-chart-line"></i> {{ _('Admin') }}
+                                </a>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="flex items-center space-x-4 rtl:space-x-reverse">
+                    <!-- Language Switcher -->
+                    <div class="relative">
+                        <button id="langDropdown" class="flex items-center text-gray-700 hover:text-indigo-600 focus:outline-none">
+                            <i class="fas fa-globe mr-1"></i> {{ 'EN' if session.get('lang') != 'ar' else 'AR' }}
+                        </button>
+                        <div id="langMenu" class="absolute right-0 mt-2 w-24 bg-white rounded-md shadow-lg hidden z-20">
+                            <a href="{{ url_for('language.set_language', lang='en') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">English</a>
+                            <a href="{{ url_for('language.set_language', lang='ar') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">العربية</a>
+                        </div>
+                    </div>
+                    {% if current_user.is_authenticated %}
+                        <div class="relative">
+                            <button id="userMenuBtn" class="flex items-center space-x-2 focus:outline-none">
+                                <span class="text-gray-700">{{ current_user.name }}</span>
+                                <i class="fas fa-chevron-down text-gray-500"></i>
+                            </button>
+                            <div id="userMenu" class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg hidden z-20">
+                                <a href="{{ url_for('auth.get_profile') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">{{ _('Profile') }}</a>
+                                <a href="{{ url_for('auth.logout') }}" class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100">{{ _('Logout') }}</a>
+                            </div>
+                        </div>
+                    {% else %}
+                        <a href="{{ url_for('auth.login_page') }}" class="text-indigo-600 hover:text-indigo-800 px-3 py-2">{{ _('Login') }}</a>
+                        <a href="{{ url_for('auth.register_page') }}" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">{{ _('Sign Up') }}</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-4 p-4 rounded-md {{ 'bg-green-100 text-green-800' if category == 'success' else 'bg-red-100 text-red-800' if category == 'danger' else 'bg-yellow-100 text-yellow-800' }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t mt-12 py-6">
+        <div class="max-w-7xl mx-auto px-4 text-center text-gray-500 text-sm">
+            © 2026 UniRide - {{ _('Safe & Smart Carpooling') }}
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+        // Language dropdown toggle
+        const langBtn = document.getElementById('langDropdown');
+        const langMenu = document.getElementById('langMenu');
+        if (langBtn) {
+            langBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                langMenu.classList.toggle('hidden');
+            });
+        }
+        // User menu toggle
+        const userBtn = document.getElementById('userMenuBtn');
+        const userMenu = document.getElementById('userMenu');
+        if (userBtn) {
+            userBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                userMenu.classList.toggle('hidden');
+            });
+        }
+        // Close dropdowns when clicking outside
+        window.addEventListener('click', () => {
+            if (langMenu) langMenu.classList.add('hidden');
+            if (userMenu) userMenu.classList.add('hidden');
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

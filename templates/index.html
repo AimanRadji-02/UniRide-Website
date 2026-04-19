@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Home') }}{% endblock %}
+{% block content %}
+<div class="space-y-8">
+    <!-- Hero -->
+    <div class="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-8 text-white">
+        <h1 class="text-3xl font-bold">{{ _('Welcome back,') }} {{ current_user.name if current_user.is_authenticated else _('Guest') }}!</h1>
+        <p class="mt-2">{{ _('Safe, affordable, and eco-friendly ridesharing for university students.') }}</p>
+        {% if not current_user.is_authenticated %}
+            <div class="mt-4 flex space-x-4">
+                <a href="{{ url_for('auth.login_page') }}" class="bg-white text-indigo-600 px-6 py-2 rounded-lg font-semibold">{{ _('Login') }}</a>
+                <a href="{{ url_for('auth.register_page') }}" class="border border-white text-white px-6 py-2 rounded-lg">{{ _('Sign Up') }}</a>
+            </div>
+        {% endif %}
+    </div>
+
+    {% if current_user.is_authenticated %}
+        <div class="grid md:grid-cols-2 gap-6">
+            <!-- Upcoming rides (as passenger) -->
+            <div class="bg-white rounded-xl shadow p-6">
+                <h2 class="text-xl font-bold mb-4"><i class="fas fa-calendar-alt text-indigo-600"></i> {{ _('Your Upcoming Rides') }}</h2>
+                <div id="upcoming-rides" class="space-y-3">
+                    <p class="text-gray-500">{{ _('Loading...') }}</p>
+                </div>
+            </div>
+            <!-- Wallet quick view -->
+            <div class="bg-white rounded-xl shadow p-6">
+                <h2 class="text-xl font-bold mb-4"><i class="fas fa-wallet text-indigo-600"></i> {{ _('Wallet Balance') }}</h2>
+                <div class="text-3xl font-bold text-green-600" id="wallet-balance">$0.00</div>
+                <a href="{{ url_for('wallet.wallet_page') }}" class="mt-4 inline-block text-indigo-600">{{ _('Manage wallet') }} →</a>
+            </div>
+        </div>
+
+        <!-- Quick actions based on role -->
+        <div class="bg-white rounded-xl shadow p-6">
+            <h2 class="text-xl font-bold mb-4">{{ _('Quick Actions') }}</h2>
+            <div class="flex flex-wrap gap-4">
+                {% if current_user.role == 'driver' %}
+                    <a href="{{ url_for('ride.offer_ride_page') }}" class="bg-indigo-100 text-indigo-700 px-5 py-2 rounded-lg hover:bg-indigo-200"><i class="fas fa-plus"></i> {{ _('Post a Ride') }}</a>
+                {% endif %}
+                {% if current_user.role == 'passenger' %}
+                    <a href="{{ url_for('ride.search_rides_page') }}" class="bg-indigo-100 text-indigo-700 px-5 py-2 rounded-lg hover:bg-indigo-200"><i class="fas fa-search"></i> {{ _('Find a Ride') }}</a>
+                {% endif %}
+                <a href="{{ url_for('booking.my_bookings_page') }}" class="bg-gray-100 text-gray-700 px-5 py-2 rounded-lg hover:bg-gray-200"><i class="fas fa-list"></i> {{ _('View Bookings') }}</a>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+    async function loadDashboard() {
+        // Fetch upcoming bookings
+        const res = await fetch('/api/bookings/api/my-bookings');
+        const bookings = await res.json();
+        const container = document.getElementById('upcoming-rides');
+        if (bookings.length === 0) {
+            container.innerHTML = '<p class="text-gray-500">{{ _("No upcoming rides") }}</p>';
+        } else {
+            container.innerHTML = bookings.map(b => `
+                <div class="border-b pb-2">
+                    <div class="flex justify-between">
+                        <div><strong>${b.ride.origin} → ${b.ride.destination}</strong><br><small>${new Date(b.ride.departure_datetime).toLocaleString()}</small></div>
+                        <div>${b.seats_requested} seat(s) · $${b.total_price}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        // Fetch wallet balance
+        const balRes = await fetch('/api/wallet/api/balance');
+        const bal = await balRes.json();
+        document.getElementById('wallet-balance').innerText = `$${bal.balance.toFixed(2)}`;
+    }
+    loadDashboard();
+</script>
+{% endblock %}

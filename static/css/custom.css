@@ -1,0 +1,12 @@
+/* Custom styles for UniRide */
+.rtl {
+    direction: rtl;
+}
+.rtl .flex {
+    flex-direction: row-reverse;
+}
+.map-container {
+    border-radius: 0.5rem;
+    overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
