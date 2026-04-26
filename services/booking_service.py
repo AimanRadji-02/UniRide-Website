@@ -10,10 +10,12 @@ from datetime import datetime, timedelta
 class BookingService:
     @staticmethod
     def create_booking(ride_id, passenger_id, seats_requested):
+        if seats_requested is None or int(seats_requested) <= 0:
+            raise ValueError("Seats requested must be at least 1")
         ride = Ride.query.get(ride_id)
-        if not ride or ride.status != 'active':
+        if not ride or ride.status not in ['scheduled', 'ongoing']:
             raise ValueError("Ride not available")
-        if ride.departure_datetime <= datetime.utcnow():
+        if ride.departure_datetime <= datetime.now():
             raise ValueError("Ride already departed")
         if ride.available_seats < seats_requested:
             raise ValueError(f"Only {ride.available_seats} seats left")
@@ -56,7 +58,7 @@ class BookingService:
         if booking.status != 'confirmed':
             raise ValueError("Booking cannot be cancelled")
         
-        now = datetime.utcnow()
+        now = datetime.now()
         time_left = booking.ride.departure_datetime - now
         refund_allowed = time_left > timedelta(minutes=30)
         

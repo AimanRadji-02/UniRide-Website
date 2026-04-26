@@ -1,57 +1,250 @@
 {% extends "base.html" %}
 {% block title %}{{ _('Search Rides') }}{% endblock %}
-{% block head_extra %}
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-{% endblock %}
 {% block content %}
-<div class="max-w-4xl mx-auto">
-    <h1 class="text-2xl font-bold mb-6">{{ _('Search Rides') }}</h1>
-    <div class="bg-white rounded-xl shadow p-6">
-        <form id="searchForm" class="space-y-4">
-            <div><label>{{ _('Origin') }}</label><input type="text" id="origin" class="w-full border rounded px-3 py-2"></div>
-            <div><label>{{ _('Destination') }}</label><input type="text" id="destination" class="w-full border rounded px-3 py-2"></div>
-            <div><label>{{ _('Date') }}</label><input type="date" id="date" class="w-full border rounded px-3 py-2"></div>
-            <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded-lg">{{ _('Search') }}</button>
+<div class="max-w-6xl mx-auto space-y-8">
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div>
+            <p class="text-sm font-semibold text-indigo-600 uppercase tracking-wide">{{ _('Search Rides') }}</p>
+            <h1 class="text-3xl font-bold text-slate-900 mt-1">{{ _('Find a Ride') }}</h1>
+            <p class="text-slate-600 mt-2">{{ _('Book Now') }} — {{ _('Safe, affordable, and eco-friendly ridesharing for university students.') }}</p>
+        </div>
+        <a href="{{ url_for('wallet.wallet_page') }}" class="inline-flex items-center justify-center gap-2 text-sm font-semibold text-indigo-700 bg-indigo-50 px-4 py-2 rounded-xl border border-indigo-100 hover:bg-indigo-100 transition">
+            <i class="fas fa-wallet"></i> {{ _('Wallet') }}
+        </a>
+    </div>
+ 
+    <div class="ur-card p-4 sm:p-5">
+        {# Prototype: fixed route map for all passengers (no API key required). #}
+        {% set dep = config.get('PROTOTYPE_FIXED_ORIGIN', 'Mosque of the Prophet District, Madinah') %}
+        {% set arr = config.get('PROTOTYPE_FIXED_DESTINATION', 'Islamic University of Madinah, Madinah') %}
+        <div class="rounded-xl overflow-hidden border border-slate-200 bg-slate-100">
+            <iframe
+                title="Route map"
+                class="w-full"
+                style="height: 360px; border: 0;"
+                loading="lazy"
+                referrerpolicy="no-referrer-when-downgrade"
+                src="https://www.google.com/maps?output=embed&saddr={{ dep|urlencode }}&daddr={{ arr|urlencode }}"
+            ></iframe>
+        </div>
+    </div>
+ 
+    <div class="ur-card p-6 sm:p-8">
+        <form id="searchForm" class="grid md:grid-cols-4 gap-4 items-end">
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-1.5">{{ _('Origin') }}</label>
+                <input type="text" id="origin" class="w-full border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500" value="{{ dep }}" readonly>
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-1.5">{{ _('Destination') }}</label>
+                <input type="text" id="destination" class="w-full border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500" value="{{ arr }}" readonly>
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-1.5">{{ _('Date') }}</label>
+                <input type="date" id="date" class="w-full border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div>
+                <button type="submit" class="w-full bg-slate-900 text-white font-semibold py-2.5 rounded-xl hover:bg-slate-800 transition shadow">
+                    <i class="fas fa-search"></i> {{ _('Search') }}
+                </button>
+            </div>
         </form>
     </div>
-    <div id="results" class="mt-6 space-y-4"></div>
+ 
+    <div id="results" class="space-y-4"></div>
 </div>
-
+ 
+<div id="bookModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/50" aria-hidden="true">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-100">
+        <h3 class="text-lg font-bold text-slate-900">{{ _('Book seats') }}</h3>
+        <p id="bookModalRide" class="text-sm text-slate-600 mt-1"></p>
+        <label class="block text-sm font-semibold text-slate-700 mt-4 mb-1.5">{{ _('Seats') }}</label>
+        <input type="number" id="bookSeats" min="1" value="1" class="w-full border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500">
+        <div class="flex gap-3 mt-6">
+            <button type="button" id="bookCancel" class="flex-1 py-2.5 rounded-xl border border-slate-200 font-semibold text-slate-700 hover:bg-slate-50">{{ _('Close') }}</button>
+            <button type="button" id="bookConfirm" class="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700">{{ _('Confirm') }}</button>
+        </div>
+    </div>
+</div>
+ 
 <script>
-    document.getElementById('searchForm').addEventListener('submit', async (e) => {
+(function() {
+    const mapsOn = false; // Prototype uses iframe map (no JS maps)
+    let searchMap, geocoder, infoWindow;
+    let mapMarkers = [];
+    let pendingRideId = null;
+ 
+    function clearMarkers() {
+        mapMarkers.forEach(function(m) { m.setMap(null); });
+        mapMarkers = [];
+    }
+ 
+    function geocodeAddress(address, cb) {
+        if (!mapsOn || !geocoder) { cb(null); return; }
+        geocoder.geocode({ address: address }, function(results, status) {
+            if (status === 'OK' && results[0]) cb(results[0].geometry.location);
+            else cb(null);
+        });
+    }
+ 
+    async function displayRides(rides) {
+        const container = document.getElementById('results');
+        clearMarkers();
+        if (infoWindow) infoWindow.close();
+ 
+        if (!rides.length) {
+            container.innerHTML = '<div class="ur-card p-10 text-center text-slate-500 font-medium">{{ _("No rides found.") }}</div>';
+            return;
+        }
+ 
+        container.innerHTML = rides.map(function(r) {
+            return '<div class="ur-card p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">' +
+                '<div class="min-w-0">' +
+                    '<div class="font-bold text-lg text-slate-900 truncate">' + escapeHtml(r.origin) + ' → ' + escapeHtml(r.destination) + '</div>' +
+                    '<div class="text-slate-600 text-sm mt-1"><i class="far fa-calendar-alt text-indigo-500"></i> ' + new Date(r.departure_datetime).toLocaleString() + '</div>' +
+                    '<div class="text-sm text-slate-500 mt-2">{{ _("Seats") }}: ' + r.available_seats + ' · $' + Number(r.price_per_seat).toFixed(2) + '</div>' +
+                    '<div class="text-sm text-slate-500"><i class="fas fa-user text-slate-400"></i> ' + escapeHtml(r.driver_name) + '</div>' +
+                '</div>' +
+                '<div class="flex flex-wrap gap-2 shrink-0">' +
+                    '<button type="button" data-focus="' + r.ride_id + '" class="book-open px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition shadow-sm">' +
+                        '<i class="fas fa-check"></i> {{ _("Book Now") }}' +
+                    '</button>' +
+                '</div>' +
+            '</div>';
+        }).join('');
+ 
+        container.querySelectorAll('.book-open').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const card = btn.closest('.ur-card');
+                const title = card ? card.querySelector('.font-bold').innerText : '';
+                openBookModal(parseInt(btn.getAttribute('data-focus'), 10), title);
+            });
+        });
+ 
+        if (!mapsOn || !searchMap) return;
+ 
+        const bounds = new google.maps.LatLngBounds();
+        let extended = false;
+        for (let i = 0; i < rides.length; i++) {
+            const r = rides[i];
+            await new Promise(function(resolve) {
+                geocodeAddress(r.origin, function(loc) {
+                    if (loc) {
+                        const m = new google.maps.Marker({
+                            position: loc,
+                            map: searchMap,
+                            title: r.origin + ' → ' + r.destination,
+                            label: { text: String(i + 1), color: 'white', fontWeight: '700' },
+                            icon: { path: google.maps.SymbolPath.CIRCLE, scale: 11, fillColor: '#4f46e5', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 }
+                        });
+                        m.addListener('click', function() {
+                            infoWindow.setContent(
+                                '<div style="max-width:220px;font-family:sans-serif;font-size:13px">' +
+                                '<strong>' + escapeHtml(r.origin) + '</strong> → <strong>' + escapeHtml(r.destination) + '</strong><br>' +
+                                '{{ _("Seats") }}: ' + r.available_seats + ' · $' + Number(r.price_per_seat).toFixed(2) + '<br>' +
+                                '<span style="color:#64748b">' + escapeHtml(r.driver_name) + '</span>' +
+                                '</div>'
+                            );
+                            infoWindow.open({ anchor: m, map: searchMap });
+                        });
+                        mapMarkers.push(m);
+                        bounds.extend(loc);
+                        extended = true;
+                    }
+                    resolve();
+                });
+            });
+        }
+        if (extended) searchMap.fitBounds(bounds, 48);
+    }
+ 
+    function escapeHtml(s) {
+        if (!s) return '';
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+ 
+    function initSearchMap() {
+        if (!mapsOn) return;
+        const el = document.getElementById('searchMap');
+        searchMap = new google.maps.Map(el, {
+            center: { lat: 24.7136, lng: 46.6753 },
+            zoom: 11,
+            mapTypeControl: false,
+            streetViewControl: false
+        });
+        geocoder = new google.maps.Geocoder();
+        infoWindow = new google.maps.InfoWindow();
+    }
+ 
+    // no-op: prototype uses iframe map
+ 
+    document.getElementById('searchForm').addEventListener('submit', function(e) {
         e.preventDefault();
+        searchRides();
+    });
+ 
+    async function searchRides() {
         const origin = document.getElementById('origin').value;
         const destination = document.getElementById('destination').value;
         const date = document.getElementById('date').value;
-        let url = `/api/rides/api/search?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
-        if (date) url += `&date=${date}`;
+        // Prototype: always load rides for the fixed route on page load.
+        let url = '/api/rides/search-results?origin=' + encodeURIComponent(origin) + '&destination=' + encodeURIComponent(destination);
+        if (date) url += '&date=' + encodeURIComponent(date);
         const res = await fetch(url);
-        const rides = await res.json();
-        const container = document.getElementById('results');
-        if (rides.length === 0) {
-            container.innerHTML = '<div class="bg-white rounded-xl shadow p-6 text-center">{{ _("No rides found.") }}</div>';
+        if (!res.ok) {
+            const container = document.getElementById('results');
+            if (res.status === 401 || res.status === 403) {
+                container.innerHTML = '<div class="ur-card p-10 text-center text-slate-500 font-medium">Please log in to view rides.</div>';
+                return;
+            }
+            const txt = await res.text().catch(function() { return ''; });
+            container.innerHTML = '<div class="ur-card p-10 text-center text-red-600 font-medium">Could not load rides.</div>';
+            console.error('search-results failed', res.status, txt.slice(0, 200));
             return;
         }
-        container.innerHTML = rides.map(r => `
-            <div class="bg-white rounded-xl shadow p-5 flex flex-wrap justify-between">
-                <div><div class="font-bold">${r.origin} → ${r.destination}</div>
-                <div>${new Date(r.departure_datetime).toLocaleString()}</div>
-                <div>{{ _('Seats') }}: ${r.available_seats} · $${r.price_per_seat}</div>
-                <div class="text-sm text-gray-500">{{ _('Driver') }}: ${r.driver_name}</div></div>
-                <div><button onclick="bookRide(${r.ride_id})" class="bg-green-600 text-white px-4 py-2 rounded-lg">{{ _('Book Now') }}</button></div>
-            </div>
-        `).join('');
-    });
-    async function bookRide(rideId) {
-        const seats = prompt("{{ _('How many seats?') }}", "1");
-        if (!seats) return;
-        const res = await fetch('/api/bookings/api/request', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ ride_id: rideId, seats_requested: parseInt(seats) })
-        });
-        if (res.ok) alert("{{ _('Booking confirmed!') }}");
-        else alert((await res.json()).error);
+        const rides = await res.json();
+        await displayRides(rides);
     }
+ 
+    const modal = document.getElementById('bookModal');
+    function openBookModal(rideId, label) {
+        pendingRideId = rideId;
+        document.getElementById('bookModalRide').textContent = label || '';
+        document.getElementById('bookSeats').value = '1';
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+    function closeBookModal() {
+        pendingRideId = null;
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+    document.getElementById('bookCancel').addEventListener('click', closeBookModal);
+    modal.addEventListener('click', function(e) { if (e.target === modal) closeBookModal(); });
+ 
+    document.getElementById('bookConfirm').addEventListener('click', async function() {
+        if (!pendingRideId) return;
+        const seats = parseInt(document.getElementById('bookSeats').value, 10) || 1;
+        const res = await fetch('/api/bookings/request', {
+            method: 'POST',
+            headers: csrfHeaders(),
+            body: JSON.stringify({ ride_id: pendingRideId, seats_requested: seats })
+        });
+        if (res.ok) {
+            alert("{{ _('Booking confirmed!') }}");
+            closeBookModal();
+            await searchRides();
+        } else {
+            const ct = (res.headers.get('content-type') || '').toLowerCase();
+            const err = ct.indexOf('application/json') !== -1
+                ? await res.json().catch(function() { return {}; })
+                : { error: (await res.text().catch(function() { return ''; })) };
+            const msg = (err && err.error) ? err.error : 'Error';
+            alert(msg + (String(msg).toLowerCase().indexOf('balance') >= 0 ? '\n{{ _("Add funds to your wallet to book.") }}' : ''));
+        }
+    });
+ 
+    searchRides();
+})();
 </script>
 {% endblock %}

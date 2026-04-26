@@ -5,7 +5,7 @@ from models.message import Message
 
 message_bp = Blueprint('message', __name__)
 
-@message_bp.route('/api/send', methods=['POST'])
+@message_bp.route('/send', methods=['POST'])
 @login_required
 def send_message():
     data = request.get_json()
@@ -24,7 +24,7 @@ def send_message():
     db.session.commit()
     return jsonify({'message': 'Sent', 'message_id': msg.message_id}), 201
 
-@message_bp.route('/api/conversation/<int:other_user_id>')
+@message_bp.route('/conversation/<int:other_user_id>')
 @login_required
 def get_conversation(other_user_id):
     messages = Message.query.filter(

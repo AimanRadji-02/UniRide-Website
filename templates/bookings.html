@@ -6,42 +6,162 @@
     <div class="text-center py-8">{{ _('Loading...') }}</div>
 </div>
 
+<!-- Chat Modal -->
+<div id="chatModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+    <div class="flex items-center justify-center h-full">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
+            <div class="border-b px-6 py-4 flex justify-between items-center">
+                <h3 id="chatTitle" class="font-semibold">{{ _('Chat with Driver') }}</h3>
+                <button onclick="closeChat()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="chatMessages" class="h-96 overflow-y-auto p-4 space-y-2">
+                <!-- Messages will appear here -->
+            </div>
+            <div class="border-t p-4">
+                <div class="flex gap-2">
+                    <input type="text" id="messageInput" placeholder="{{ _('Type a message...') }}" 
+                           class="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button onclick="sendMessage()" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Rating Modal -->
+<div id="ratingModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+    <div class="flex items-center justify-center h-full">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
+            <div class="border-b px-6 py-4 flex justify-between items-center">
+                <h3 id="ratingTitle" class="font-semibold">{{ _('Rate Ride') }}</h3>
+                <button onclick="closeRatingModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-6">
+                <div class="mb-4">
+                    <p class="text-sm text-gray-600 mb-2">{{ _('Rating for') }}: <span id="ratingDriverName" class="font-semibold"></span></p>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">{{ _('Rating') }}</label>
+                    <div class="flex gap-2" id="starRating">
+                        <button type="button" onclick="setRating(1)" 
+                                class="star-btn text-3xl text-gray-300 hover:text-yellow-400 transition-colors"
+                                data-rating="1">
+                            <i class="fas fa-star"></i>
+                        </button>
+                        <button type="button" onclick="setRating(2)" 
+                                class="star-btn text-3xl text-gray-300 hover:text-yellow-400 transition-colors"
+                                data-rating="2">
+                            <i class="fas fa-star"></i>
+                        </button>
+                        <button type="button" onclick="setRating(3)" 
+                                class="star-btn text-3xl text-gray-300 hover:text-yellow-400 transition-colors"
+                                data-rating="3">
+                            <i class="fas fa-star"></i>
+                        </button>
+                        <button type="button" onclick="setRating(4)" 
+                                class="star-btn text-3xl text-gray-300 hover:text-yellow-400 transition-colors"
+                                data-rating="4">
+                            <i class="fas fa-star"></i>
+                        </button>
+                        <button type="button" onclick="setRating(5)" 
+                                class="star-btn text-3xl text-gray-300 hover:text-yellow-400 transition-colors"
+                                data-rating="5">
+                            <i class="fas fa-star"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="ratingComment" class="block text-sm font-medium text-gray-700 mb-2">{{ _('Comment (optional)') }}</label>
+                    <textarea id="ratingComment" rows="3" 
+                              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              placeholder="{{ _('Share your experience...') }}"></textarea>
+                </div>
+                
+                <div class="flex gap-3">
+                    <button onclick="submitRating()" 
+                            class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                        <i class="fas fa-paper-plane"></i> {{ _('Submit Rating') }}
+                    </button>
+                    <button onclick="closeRatingModal()" 
+                            class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300">
+                        {{ _('Cancel') }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     async function loadBookings() {
-        const res = await fetch('/api/bookings/api/my-bookings');
+        const res = await fetch('/api/bookings/list');
         const bookings = await res.json();
+        console.log('Bookings loaded:', bookings); // Debug log
         const container = document.getElementById('bookings-list');
         if (bookings.length === 0) {
             container.innerHTML = '<div class="bg-white rounded-xl shadow p-6 text-center text-gray-500">{{ _("You have no bookings.") }}</div>';
             return;
         }
         container.innerHTML = bookings.map(b => `
-            <div class="bg-white rounded-xl shadow p-5 flex flex-wrap justify-between items-center">
-                <div>
-                    <div class="font-bold text-lg">${b.ride.origin} → ${b.ride.destination}</div>
-                    <div class="text-gray-600"><i class="far fa-calendar-alt"></i> ${new Date(b.ride.departure_datetime).toLocaleString()}</div>
-                    <div class="text-sm">${b.seats_requested} seat(s) · $${b.total_price}</div>
-                    <span class="inline-block mt-2 px-2 py-1 rounded text-xs font-semibold 
-                        ${b.status === 'confirmed' ? 'bg-green-100 text-green-800' : 
-                          b.status === 'cancelled' ? 'bg-red-100 text-red-800' : 
-                          'bg-yellow-100 text-yellow-800'}">
-                        ${b.status}
-                    </span>
+            <div class="bg-white rounded-xl shadow p-5">
+                <div class="flex flex-wrap justify-between items-start mb-3">
+                    <div>
+                        <div class="font-bold text-lg">${b.ride.origin} &rarr; ${b.ride.destination}</div>
+                        <div class="text-gray-600"><i class="far fa-calendar-alt"></i> ${new Date(b.ride.departure_datetime).toLocaleString()}</div>
+                        <div class="text-sm">${b.seats_requested} seat(s) &middot; $${b.total_price}</div>
+                        <div class="flex items-center gap-2 mt-2">
+                            <span class="inline-block px-2 py-1 rounded text-xs font-semibold 
+                                ${b.status === 'confirmed' ? 'bg-green-100 text-green-800' : 
+                                  b.status === 'cancelled' ? 'bg-red-100 text-red-800' : 
+                                  'bg-yellow-100 text-yellow-800'}">
+                                ${b.status}
+                            </span>
+                            <span class="inline-block px-2 py-1 rounded text-xs font-semibold 
+                                ${b.ride.status === 'completed' ? 'bg-blue-100 text-blue-800' : 
+                                  b.ride.status === 'scheduled' ? 'bg-gray-100 text-gray-800' :
+                                  b.ride.status === 'ongoing' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-red-100 text-red-800'}">
+                                Ride: ${b.ride.status}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 mt-2">
+                        ${b.can_cancel ? `<button onclick="cancelBooking(${b.booking_id})" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"><i class="fas fa-times"></i> {{ _('Cancel') }}</button>` : ''}
+                        ${b.status === 'confirmed' && b.ride.status !== 'completed' ? `<a href="/api/rides/track/${b.ride_id}" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300"><i class="fas fa-map-marker-alt"></i> {{ _('Live Track') }}</a>` : ''}
+                        ${b.status === 'confirmed' && b.ride.status === 'completed' ? `<button onclick="openRatingModal(${b.ride_id}, ${b.driver.driver_id}, '${b.driver.name}')" class="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600"><i class="fas fa-star"></i> {{ _('Rate Ride') }}</button>` : ''}
+                    </div>
                 </div>
-                <div>
-                    ${b.can_cancel ? `<button onclick="cancelBooking(${b.booking_id})" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"><i class="fas fa-times"></i> {{ _('Cancel') }}</button>` : ''}
-                    ${b.status === 'confirmed' && new Date(b.ride.departure_datetime) < new Date() ? `<a href="/api/ratings/rate/${b.ride_id}" class="bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600"><i class="fas fa-star"></i> {{ _('Rate Ride') }}</a>` : ''}
-                    ${b.status === 'confirmed' ? `<a href="/api/rides/track/${b.ride_id}" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300"><i class="fas fa-map-marker-alt"></i> {{ _('Live Track') }}</a>` : ''}
-                </div>
+                ${b.driver && b.status === 'confirmed' ? `
+                    <div class="border-t pt-3 mt-3">
+                        <div class="flex items-center justify-between">
+                            <div class="text-sm">
+                                <div class="font-semibold text-gray-700">{{ _('Driver') }}: ${b.driver.name}</div>
+                                <div class="text-gray-600">${b.driver.phone}</div>
+                            </div>
+                            <button onclick="openChat(${b.driver.driver_id}, '${b.driver.name}', ${b.ride_id})" 
+                                    class="bg-blue-500 text-white px-3 py-2 rounded-lg hover:bg-blue-600 text-sm">
+                                <i class="fas fa-comment"></i> {{ _('Chat') }}
+                            </button>
+                        </div>
+                    </div>
+                ` : ''}
             </div>
         `).join('');
     }
 
     async function cancelBooking(bookingId) {
         if (!confirm('{{ _("Are you sure you want to cancel this booking?") }}')) return;
-        const res = await fetch('/api/bookings/api/cancel', {
+        const res = await fetch('/api/bookings/cancel', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: csrfHeaders(),
             body: JSON.stringify({ booking_id: bookingId })
         });
         if (res.ok) {
@@ -52,6 +172,269 @@
             alert(err.error);
         }
     }
-    loadBookings();
+
+    // Chat functionality
+    let currentDriverId = null;
+    let currentRideId = null;
+    let socket = null;
+
+    // Initialize Socket.IO
+    function initializeSocket() {
+        socket = io();
+        
+        socket.on('new_message', (data) => {
+            // Always show notification for new messages
+            showChatNotification(data);
+            
+            // If chat is open with this person, load messages
+            if (currentDriverId && (data.sender_id === currentDriverId || data.receiver_id === currentDriverId)) {
+                loadMessages(currentDriverId);
+            }
+        });
+        
+        // Show chat notification
+        function showChatNotification(data) {
+            // Don't show notification for own messages
+            const currentUserId = {{ current_user.user_id }};
+            if (data.sender_id === currentUserId) {
+                return;
+            }
+            
+            // Use menu badge notification
+            if (typeof showNotificationBadge === 'function') {
+                const senderName = data.sender_name || 'Someone';
+                const message = data.content.substring(0, 50) + (data.content.length > 50 ? '...' : '');
+                showNotificationBadge(`New message from ${senderName}: ${message}`);
+            }
+            
+            // Also show browser notification if permitted
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification('New Message', {
+                    body: data.content,
+                    icon: '/static/images/chat-icon.png'
+                });
+            }
+        }
+    }
+
+    // Open chat modal
+    function openChat(driverId, driverName, rideId) {
+        currentDriverId = driverId;
+        currentRideId = rideId;
+        document.getElementById('chatTitle').textContent = `{{ _('Chat with Driver') }} ${driverName}`;
+        document.getElementById('chatModal').classList.remove('hidden');
+        document.getElementById('messageInput').focus();
+        
+        // Join private chat room
+        if (socket) {
+            socket.emit('join_private_chat', { other_user_id: driverId });
+        }
+        
+        loadMessages(driverId);
+    }
+
+    // Close chat modal
+    function closeChat() {
+        document.getElementById('chatModal').classList.add('hidden');
+        currentDriverId = null;
+        currentRideId = null;
+        document.getElementById('chatMessages').innerHTML = '';
+    }
+
+    // Load messages for a conversation
+    async function loadMessages(driverId) {
+        try {
+            const res = await fetch(`/api/messages/conversation/${driverId}`);
+            const messages = await res.json();
+            const container = document.getElementById('chatMessages');
+            
+            container.innerHTML = messages.map(msg => `
+                <div class="flex ${msg.sender_id === driverId ? 'justify-start' : 'justify-end'}">
+                    <div class="max-w-xs px-4 py-2 rounded-lg ${
+                        msg.sender_id === driverId 
+                            ? 'bg-gray-200 text-gray-800' 
+                            : 'bg-blue-500 text-white'
+                    }">
+                        <div class="text-sm">${msg.content}</div>
+                        <div class="text-xs mt-1 ${msg.sender_id === driverId ? 'text-gray-600' : 'text-blue-100'}">
+                            ${new Date(msg.sent_at).toLocaleTimeString()}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            // Scroll to bottom
+            container.scrollTop = container.scrollHeight;
+        } catch (error) {
+            console.error('Error loading messages:', error);
+        }
+    }
+
+    // Send a message
+    async function sendMessage() {
+        const input = document.getElementById('messageInput');
+        const content = input.value.trim();
+        
+        if (!content || !currentDriverId || !currentRideId) return;
+        
+        // Use Socket.IO for real-time messaging
+        if (socket) {
+            socket.emit('send_private_message', {
+                receiver_id: currentDriverId,
+                ride_id: currentRideId,
+                content: content
+            });
+            input.value = '';
+        } else {
+            // Fallback to HTTP if socket is not available
+            try {
+                const res = await fetch('/api/messages/send', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...csrfHeaders()
+                    },
+                    body: JSON.stringify({
+                        receiver_id: currentDriverId,
+                        ride_id: currentRideId,
+                        content: content
+                    })
+                });
+                
+                if (res.ok) {
+                    input.value = '';
+                    loadMessages(currentDriverId);
+                } else {
+                    const err = await res.json();
+                    alert(err.error || '{{ _("Failed to send message") }}');
+                }
+            } catch (error) {
+                console.error('Error sending message:', error);
+                alert('{{ _("Failed to send message") }}');
+            }
+        }
+    }
+
+    // Rating functionality
+    let ratingRideId = null;
+    let ratingRevieweeId = null;
+    let selectedRating = 0;
+
+    // Open rating modal
+    async function openRatingModal(rideId, revieweeId, revieweeName) {
+        ratingRideId = rideId;
+        ratingRevieweeId = revieweeId;
+        selectedRating = 0;
+
+        // Check if eligible to rate
+        try {
+            const res = await fetch(`/api/ratings/check-eligibility/${rideId}`);
+            const eligibility = await res.json();
+
+            if (!eligibility.eligible) {
+                alert(eligibility.reason || '{{ _("You are not eligible to rate this ride") }}');
+                return;
+            }
+
+            // Set modal content
+            document.getElementById('ratingDriverName').textContent = revieweeName;
+            
+            // Reset star rating
+            document.querySelectorAll('.star-btn').forEach(btn => {
+                btn.classList.remove('text-yellow-400');
+                btn.classList.add('text-gray-300');
+            });
+            
+            document.getElementById('ratingComment').value = '';
+            
+            // Show modal
+            document.getElementById('ratingModal').classList.remove('hidden');
+        } catch (error) {
+            console.error('Error checking rating eligibility:', error);
+            alert('{{ _("Failed to check rating eligibility") }}');
+        }
+    }
+
+    // Close rating modal
+    function closeRatingModal() {
+        document.getElementById('ratingModal').classList.add('hidden');
+        ratingRideId = null;
+        ratingRevieweeId = null;
+        selectedRating = 0;
+    }
+
+    // Set rating value
+    function setRating(rating) {
+        console.log('setRating called with:', rating); // Debug log
+        selectedRating = rating;
+        
+        // Update star display
+        const starButtons = document.querySelectorAll('.star-btn');
+        console.log('Found star buttons:', starButtons.length); // Debug log
+        
+        starButtons.forEach((btn, index) => {
+            if (index + 1 <= rating) {
+                btn.classList.remove('text-gray-300');
+                btn.classList.add('text-yellow-400');
+            } else {
+                btn.classList.remove('text-yellow-400');
+                btn.classList.add('text-gray-300');
+            }
+        });
+        
+        console.log('selectedRating is now:', selectedRating); // Debug log
+    }
+
+    // Submit rating
+    async function submitRating() {
+        if (selectedRating === 0) {
+            alert('{{ _("Please select a rating") }}');
+            return;
+        }
+
+        const comment = document.getElementById('ratingComment').value.trim();
+
+        try {
+            const res = await fetch('/api/ratings/submit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...csrfHeaders()
+                },
+                body: JSON.stringify({
+                    ride_id: ratingRideId,
+                    reviewee_id: ratingRevieweeId,
+                    rating_value: selectedRating,
+                    comment: comment
+                })
+            });
+
+            if (res.ok) {
+                const result = await res.json();
+                alert('{{ _("Rating submitted successfully!") }}');
+                closeRatingModal();
+                loadBookings(); // Refresh bookings to update UI
+            } else {
+                const err = await res.json();
+                alert(err.error || '{{ _("Failed to submit rating") }}');
+            }
+        } catch (error) {
+            console.error('Error submitting rating:', error);
+            alert('{{ _("Failed to submit rating. Please try again.") }}');
+        }
+    }
+
+    // Handle Enter key in message input
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeSocket();
+        loadBookings();
+        
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    });
 </script>
 {% endblock %}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Profile') }}{% endblock %}
+{% block content %}
+<div class="max-w-lg mx-auto bg-white rounded-xl shadow p-6">
+    <h1 class="text-2xl font-bold mb-6">{{ _('Profile') }}</h1>
+    <div class="space-y-4">
+        <div>
+            <label class="block text-sm text-gray-500">{{ _('Name') }}</label>
+            <div class="text-lg font-medium">{{ user.name }}</div>
+        </div>
+        <div>
+            <label class="block text-sm text-gray-500">{{ _('Email') }}</label>
+            <div class="text-lg">{{ user.email }}</div>
+        </div>
+        <div>
+            <label class="block text-sm text-gray-500">{{ _('Phone') }}</label>
+            <div class="text-lg">{{ user.phone }}</div>
+        </div>
+        <div>
+            <label class="block text-sm text-gray-500">{{ _('Role') }}</label>
+            <div class="text-lg capitalize">{{ user.role }}</div>
+        </div>
+        {% if user.vehicle_details %}
+        <div>
+            <label class="block text-sm text-gray-500">{{ _('Vehicle Details') }}</label>
+            <div class="text-lg">{{ user.vehicle_details }}</div>
+        </div>
+        {% endif %}
+        <div>
+            <label class="block text-sm text-gray-500">{{ _('Member Since') }}</label>
+            <div class="text-lg">{{ user.created_at.strftime('%B %d, %Y') }}</div>
+        </div>
+    </div>
+</div>
+{% endblock %}

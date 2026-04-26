@@ -31,7 +31,8 @@ def register():
     user.set_password(password)
     db.session.add(user)
     db.session.flush()
-    wallet = Wallet(user_id=user.user_id, balance=0.0)
+    starter = 50.0 if role == 'passenger' else 0.0
+    wallet = Wallet(user_id=user.user_id, balance=starter)
     db.session.add(wallet)
     db.session.commit()
     flash('Registration successful! Please login.', 'success')

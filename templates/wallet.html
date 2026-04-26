@@ -1,56 +1,65 @@
 {% extends "base.html" %}
-{% block title %}My Wallet{% endblock %}
+{% block title %}{{ _('Wallet') }}{% endblock %}
 {% block content %}
 <div class="max-w-2xl mx-auto">
-    <h1 class="text-2xl font-bold mb-6">Wallet (FR-09)</h1>
+    <h1 class="text-2xl font-bold mb-6">{{ _('Wallet') }}</h1>
     <div class="bg-white rounded-xl shadow p-6 mb-6">
         <div class="text-center">
-            <div class="text-gray-500">Current Balance</div>
+            <div class="text-gray-500">{{ _('Current Balance') }}</div>
             <div class="text-4xl font-bold text-green-600" id="balance">$0.00</div>
         </div>
         <div class="mt-4 flex gap-2">
-            <input type="number" id="amount" placeholder="Amount" class="flex-1 border rounded px-3 py-2">
-            <button id="addFundsBtn" class="bg-indigo-600 text-white px-6 py-2 rounded">Add Funds</button>
+            <input type="number" id="amount" placeholder="Amount" min="1" step="0.01" class="flex-1 border rounded px-3 py-2 focus:ring-2 focus:ring-indigo-500">
+            <button id="addFundsBtn" class="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700 transition">{{ _('Add Funds') }}</button>
         </div>
     </div>
     <div class="bg-white rounded-xl shadow p-6">
-        <h2 class="font-bold text-xl mb-3">Transaction History</h2>
+        <h2 class="font-bold text-xl mb-3">{{ _('Transaction History') }}</h2>
         <div class="space-y-2" id="transactions"></div>
     </div>
 </div>
 <script>
     async function loadBalance() {
-        const res = await fetch('/api/wallet/api/balance');
+        const res = await fetch('/api/wallet/balance');
         const data = await res.json();
         document.getElementById('balance').innerText = `$${data.balance.toFixed(2)}`;
     }
     async function loadTransactions() {
-        const res = await fetch('/api/wallet/api/transactions');
+        const res = await fetch('/api/wallet/transactions');
         const txs = await res.json();
         const container = document.getElementById('transactions');
         if (txs.length === 0) {
-            container.innerHTML = '<p class="text-gray-500">No transactions yet.</p>';
+            container.innerHTML = '<p class="text-gray-500">{{ _("No transactions yet.") }}</p>';
             return;
         }
         container.innerHTML = txs.map(t => `
-            <div class="border-b py-2 flex justify-between">
-                <div><span class="font-semibold">${t.type}</span><br><small>${new Date(t.date).toLocaleString()}</small></div>
-                <div class="${t.type === 'credit' ? 'text-green-600' : 'text-red-600'}">${t.type === 'credit' ? '+' : '-'}$${Math.abs(t.amount).toFixed(2)}</div>
-                <div class="text-sm text-gray-500">${t.description}</div>
+            <div class="border-b py-2 flex justify-between items-center">
+                <div>
+                    <span class="font-semibold capitalize">${t.type}</span>
+                    <br><small class="text-gray-500">${new Date(t.date).toLocaleString()}</small>
+                </div>
+                <div class="${t.type === 'credit' ? 'text-green-600' : 'text-red-600'} font-bold">
+                    ${t.type === 'credit' ? '+' : '-'}$${Math.abs(t.amount).toFixed(2)}
+                </div>
+                <div class="text-sm text-gray-500 max-w-xs">${t.description}</div>
             </div>
         `).join('');
     }
     document.getElementById('addFundsBtn').onclick = async () => {
         const amount = parseFloat(document.getElementById('amount').value);
-        if (amount > 0) {
-            await fetch('/api/wallet/api/add-funds', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ amount })
-            });
+        if (!amount || amount <= 0) { alert('Please enter a valid amount'); return; }
+        const res = await fetch('/api/wallet/add-funds', {
+            method: 'POST',
+            headers: csrfHeaders(),
+            body: JSON.stringify({ amount })
+        });
+        if (res.ok) {
             loadBalance();
             loadTransactions();
             document.getElementById('amount').value = '';
+        } else {
+            const err = await res.json();
+            alert(err.error);
         }
     };
     loadBalance();

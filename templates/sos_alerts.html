@@ -25,7 +25,6 @@
                         <div>{{ _('Triggered at') }}: ${new Date(s.triggered_at).toLocaleString()}</div>
                         <div>{{ _('Status') }}: <span class="font-semibold ${s.status === 'active' ? 'text-red-600' : 'text-green-600'}">${s.status}</span></div>
                     </div>
-                    ${s.status === 'active' ? `<div><button disabled class="bg-gray-400 text-white px-3 py-1 rounded">{{ _('Resolving...') }}</button></div>` : ''}
                 </div>
             </div>
         `).join('');

@@ -5,7 +5,7 @@ from datetime import datetime
 class RideService:
     @staticmethod
     def create_ride(driver_id, origin, destination, departure_datetime, available_seats, price_per_seat, recurring_days=None):
-        if departure_datetime <= datetime.utcnow():
+        if departure_datetime <= datetime.now():
             raise ValueError("Departure must be in future")
         if available_seats <= 0:
             raise ValueError("At least one seat required")
@@ -16,7 +16,8 @@ class RideService:
             departure_datetime=departure_datetime,
             available_seats=available_seats,
             price_per_seat=price_per_seat,
-            recurring_days=recurring_days
+            recurring_days=recurring_days,
+            status='scheduled'  # Explicitly set status for new rides
         )
         db.session.add(ride)
         db.session.commit()
@@ -24,7 +25,14 @@ class RideService:
     
     @staticmethod
     def search_rides(origin=None, destination=None, date=None):
-        query = Ride.query.filter_by(status='active').filter(Ride.available_seats > 0)
+        # FIXED: Use correct status values for searchable rides
+        query = Ride.query.filter(
+            Ride.status.in_(['scheduled', 'ongoing'])
+        ).filter(Ride.available_seats > 0)
+        
+        # Only show future rides
+        query = query.filter(Ride.departure_datetime >= datetime.now())
+        
         if origin:
             query = query.filter(Ride.origin.ilike(f'%{origin}%'))
         if destination:

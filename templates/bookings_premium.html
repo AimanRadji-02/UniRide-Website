@@ -1,0 +1,783 @@
+{% extends "base_premium.html" %}
+{% block title %}{{ _('My Bookings') }}{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <!-- Header Section -->
+    <div class="text-center mb-12 fade-in">
+        <h1 class="text-4xl md:text-5xl font-bold mb-4">
+            <span class="bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
+                {{ _('My Bookings') }}
+            </span>
+        </h1>
+        <p class="text-xl text-white/70 max-w-2xl mx-auto">
+            {{ _('Manage your ride bookings and stay connected with drivers') }}
+        </p>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="glass-card rounded-3xl p-2 mb-8 fade-in">
+        <div class="flex flex-wrap gap-2">
+            <button onclick="filterBookings('all')" class="filter-btn active group" data-filter="all">
+                <i class="fas fa-list mr-2 group-hover:rotate-12 transition-transform"></i>
+                {{ _('All Bookings') }}
+                <span class="ml-2 px-2 py-1 bg-white/20 rounded-full text-xs" id="allCount">0</span>
+            </button>
+            <button onclick="filterBookings('upcoming')" class="filter-btn group" data-filter="upcoming">
+                <i class="fas fa-calendar-alt mr-2 group-hover:rotate-12 transition-transform"></i>
+                {{ _('Upcoming') }}
+                <span class="ml-2 px-2 py-1 bg-white/20 rounded-full text-xs" id="upcomingCount">0</span>
+            </button>
+            <button onclick="filterBookings('confirmed')" class="filter-btn group" data-filter="confirmed">
+                <i class="fas fa-check-circle mr-2 group-hover:rotate-12 transition-transform"></i>
+                {{ _('Confirmed') }}
+                <span class="ml-2 px-2 py-1 bg-white/20 rounded-full text-xs" id="confirmedCount">0</span>
+            </button>
+            <button onclick="filterBookings('pending')" class="filter-btn group" data-filter="pending">
+                <i class="fas fa-clock mr-2 group-hover:rotate-12 transition-transform"></i>
+                {{ _('Pending') }}
+                <span class="ml-2 px-2 py-1 bg-white/20 rounded-full text-xs" id="pendingCount">0</span>
+            </button>
+            <button onclick="filterBookings('completed')" class="filter-btn group" data-filter="completed">
+                <i class="fas fa-flag-checkered mr-2 group-hover:rotate-12 transition-transform"></i>
+                {{ _('Completed') }}
+                <span class="ml-2 px-2 py-1 bg-white/20 rounded-full text-xs" id="completedCount">0</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loadingState" class="text-center py-12">
+        <div class="loading-spinner mx-auto mb-4"></div>
+        <p class="text-white/70">{{ _('Loading your bookings...') }}</p>
+    </div>
+
+    <!-- Bookings Grid -->
+    <div id="bookingsGrid" class="grid grid-cols-1 lg:grid-cols-2 gap-6 hidden">
+        <!-- Booking cards will be dynamically inserted here -->
+    </div>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="hidden text-center py-12">
+        <div class="glass-card rounded-3xl p-12 max-w-md mx-auto">
+            <div class="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-gray-500 to-gray-600 rounded-full flex items-center justify-center">
+                <i class="fas fa-ticket-alt text-white text-2xl"></i>
+            </div>
+            <h3 class="text-2xl font-bold text-white mb-4">{{ _('No Bookings Found') }}</h3>
+            <p class="text-white/70 mb-6">
+                {{ _("You haven't booked any rides yet. Start exploring available rides!") }}
+            </p>
+            <a href="{{ url_for('ride.search_rides_page') }}" class="btn-premium">
+                <i class="fas fa-search mr-2"></i>
+                {{ _('Find Rides') }}
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Chat Modal -->
+<div id="chatModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="glass-card rounded-3xl max-w-2xl w-full h-[600px] flex flex-col transform scale-95 opacity-0 transition-all" id="chatModalContent">
+        <!-- Chat Header -->
+        <div class="flex items-center justify-between p-6 border-b border-white/20">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold">
+                    <span id="driverAvatar">D</span>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-white" id="chatTitle">{{ _('Chat with Driver') }}</h3>
+                    <p class="text-white/60 text-sm" id="chatSubtitle">{{ _('Driver Name') }}</p>
+                </div>
+            </div>
+            <button onclick="closeChat()" class="text-white/60 hover:text-white transition-colors">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <!-- Chat Messages -->
+        <div id="chatMessages" class="flex-1 overflow-y-auto p-6 space-y-4">
+            <!-- Messages will be dynamically inserted here -->
+        </div>
+
+        <!-- Chat Input -->
+        <div class="p-6 border-t border-white/20">
+            <div class="flex gap-3">
+                <input type="text" id="messageInput" 
+                       placeholder="{{ _('Type a message...') }}" 
+                       class="flex-1 px-4 py-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:border-purple-500 focus:bg-white/20 transition-all">
+                <button onclick="sendMessage()" class="btn-premium px-6 py-3">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cancel Booking Modal -->
+<div id="cancelModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="glass-card rounded-3xl max-w-md w-full p-8 transform scale-95 opacity-0 transition-all" id="cancelModalContent">
+        <div class="text-center">
+            <div class="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-red-500 to-pink-500 rounded-full flex items-center justify-center">
+                <i class="fas fa-exclamation-triangle text-white text-2xl"></i>
+            </div>
+            <h3 class="text-2xl font-bold text-white mb-4">{{ _('Cancel Booking?') }}</h3>
+            <p class="text-white/70 mb-6">
+                {{ _('Are you sure you want to cancel this booking? This action cannot be undone.') }}
+            </p>
+            <div class="flex gap-4">
+                <button onclick="closeCancelModal()" class="btn-secondary flex-1">
+                    {{ _('Keep Booking') }}
+                </button>
+                <button onclick="confirmCancel()" class="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl font-semibold transition-colors flex-1">
+                    {{ _('Cancel Booking') }}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Filter Buttons */
+.filter-btn {
+    flex: 1;
+    min-width: 120px;
+    padding: 12px 20px;
+    background: transparent;
+    border: none;
+    border-radius: var(--border-radius-sm);
+    color: var(--text-secondary);
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    position: relative;
+    overflow: hidden;
+}
+
+.filter-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2));
+    opacity: 0;
+    transition: var(--transition-smooth);
+}
+
+.filter-btn:hover::before {
+    opacity: 1;
+}
+
+.filter-btn.active {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.3), rgba(118, 75, 162, 0.3));
+    color: white;
+}
+
+.filter-btn.active::before {
+    opacity: 1;
+}
+
+/* Booking Card Animations */
+.booking-card {
+    animation: slideInUp 0.6s ease forwards;
+    opacity: 0;
+}
+
+.booking-card:nth-child(1) { animation-delay: 0.1s; }
+.booking-card:nth-child(2) { animation-delay: 0.2s; }
+.booking-card:nth-child(3) { animation-delay: 0.3s; }
+.booking-card:nth-child(4) { animation-delay: 0.4s; }
+.booking-card:nth-child(5) { animation-delay: 0.5s; }
+.booking-card:nth-child(6) { animation-delay: 0.6s; }
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Chat Message Animations */
+.chat-message {
+    animation: messageSlideIn 0.3s ease;
+}
+
+@keyframes messageSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Status Badge Animations */
+.status-badge {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allBookings = [];
+let currentFilter = 'all';
+let currentDriverId = null;
+let currentRideId = null;
+let socket = null;
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    loadBookings();
+    initializeSocket();
+    
+    // Message input enter key
+    document.getElementById('messageInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+});
+
+// Initialize Socket.IO
+function initializeSocket() {
+    socket = io();
+    
+    socket.on('new_message', (data) => {
+        if (data.sender_id === currentDriverId || data.receiver_id === currentDriverId) {
+            loadMessages(currentDriverId);
+        }
+    });
+}
+
+// Load bookings
+async function loadBookings() {
+    const loadingState = document.getElementById('loadingState');
+    const bookingsGrid = document.getElementById('bookingsGrid');
+    const emptyState = document.getElementById('emptyState');
+    
+    loadingState.classList.remove('hidden');
+    bookingsGrid.classList.add('hidden');
+    emptyState.classList.add('hidden');
+
+    try {
+        const response = await fetch('/api/bookings/list');
+        const bookings = await response.json();
+        
+        allBookings = bookings;
+        updateCounts();
+        displayBookings(currentFilter);
+        
+        loadingState.classList.add('hidden');
+        
+        if (bookings.length === 0) {
+            emptyState.classList.remove('hidden');
+        } else {
+            bookingsGrid.classList.remove('hidden');
+        }
+    } catch (error) {
+        console.error('Error loading bookings:', error);
+        loadingState.classList.add('hidden');
+        showError('{{ _("Failed to load bookings. Please try again.") }}');
+    }
+}
+
+// Update booking counts
+function updateCounts() {
+    const counts = {
+        all: allBookings.length,
+        upcoming: allBookings.filter(b => isUpcoming(b)).length,
+        confirmed: allBookings.filter(b => b.status === 'confirmed').length,
+        pending: allBookings.filter(b => b.status === 'pending').length,
+        completed: allBookings.filter(b => b.status === 'completed' || isPast(b)).length
+    };
+
+    Object.keys(counts).forEach(filter => {
+        const element = document.getElementById(`${filter}Count`);
+        if (element) element.textContent = counts[filter];
+    });
+}
+
+// Check if booking is upcoming
+function isUpcoming(booking) {
+    return booking.status === 'confirmed' && !isPast(booking);
+}
+
+// Check if booking is in the past
+function isPast(booking) {
+    return new Date(booking.ride.departure_datetime) < new Date();
+}
+
+// Filter bookings
+function filterBookings(filter) {
+    currentFilter = filter;
+    
+    // Update active filter button
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.filter === filter) {
+            btn.classList.add('active');
+        }
+    });
+    
+    displayBookings(filter);
+}
+
+// Display bookings
+function displayBookings(filter) {
+    const bookingsGrid = document.getElementById('bookingsGrid');
+    let filteredBookings = allBookings;
+
+    // Apply filter
+    switch(filter) {
+        case 'upcoming':
+            filteredBookings = allBookings.filter(b => isUpcoming(b));
+            break;
+        case 'confirmed':
+            filteredBookings = allBookings.filter(b => b.status === 'confirmed');
+            break;
+        case 'pending':
+            filteredBookings = allBookings.filter(b => b.status === 'pending');
+            break;
+        case 'completed':
+            filteredBookings = allBookings.filter(b => b.status === 'completed' || isPast(b));
+            break;
+    }
+
+    // Sort by departure time (upcoming first)
+    filteredBookings.sort((a, b) => {
+        const dateA = new Date(a.ride.departure_datetime);
+        const dateB = new Date(b.ride.departure_datetime);
+        return dateA - dateB;
+    });
+
+    bookingsGrid.innerHTML = filteredBookings.map((booking, index) => `
+        <div class="glass-card p-6 booking-card hover-lift" style="animation-delay: ${index * 0.1}s">
+            <!-- Booking Header -->
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold">
+                        ${booking.driver ? booking.driver.name.charAt(0).toUpperCase() : 'D'}
+                    </div>
+                    <div>
+                        <h4 class="text-white font-semibold">
+                            ${booking.driver ? booking.driver.name : '{{ _("Driver") }}'}
+                        </h4>
+                        <div class="flex items-center gap-2">
+                            <div class="flex">
+                                ${generateStars(4.5)}
+                            </div>
+                            <span class="text-white/60 text-sm">4.5</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <span class="status-badge px-3 py-1 rounded-full text-xs font-medium ${getStatusClass(booking.status, booking)}">
+                        ${getStatusText(booking.status, booking)}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Route Info -->
+            <div class="mb-4">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-map-marker-alt text-purple-400"></i>
+                        <span class="text-white font-medium">${booking.ride.origin}</span>
+                    </div>
+                    <i class="fas fa-arrow-right text-white/40"></i>
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-flag-checkered text-purple-400"></i>
+                        <span class="text-white font-medium">${booking.ride.destination}</span>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-4 text-white/60 text-sm">
+                    <div class="flex items-center gap-1">
+                        <i class="fas fa-calendar"></i>
+                        <span>${formatDate(booking.ride.departure_datetime)}</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <i class="fas fa-clock"></i>
+                        <span>${formatTime(booking.ride.departure_datetime)}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Booking Details -->
+            <div class="flex items-center justify-between mb-4 pt-4 border-t border-white/20">
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-1">
+                        <i class="fas fa-users text-purple-400"></i>
+                        <span class="text-white">${booking.seats_requested} {{ _('Seats') }}</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <i class="fas fa-dollar-sign text-green-400"></i>
+                        <span class="text-white font-semibold">$${booking.total_price}</span>
+                    </div>
+                </div>
+                <div class="text-white/60 text-sm">
+                    #${booking.booking_id}
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-3">
+                ${booking.status === 'confirmed' && isUpcoming(booking) ? `
+                    <a href="/api/rides/track/${booking.ride_id}" class="btn-secondary flex-1 group">
+                        <i class="fas fa-map-marker-alt mr-2 group-hover:rotate-12 transition-transform"></i>
+                        {{ _('Track') }}
+                    </a>
+                    ${booking.can_cancel ? `
+                        <button onclick="openCancelModal(${booking.booking_id})" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl font-semibold transition-colors flex-1">
+                            <i class="fas fa-times mr-2"></i>
+                            {{ _('Cancel') }}
+                        </button>
+                    ` : ''}
+                ` : ''}
+                
+                ${booking.status === 'confirmed' && booking.driver ? `
+                    <button onclick="openChat(${booking.driver.driver_id}, '${booking.driver.name}', ${booking.ride_id})" class="btn-premium flex-1 group">
+                        <i class="fas fa-comment mr-2 group-hover:rotate-12 transition-transform"></i>
+                        {{ _('Chat') }}
+                    </button>
+                ` : ''}
+                
+                ${booking.status === 'pending' ? `
+                    <button onclick="cancelBooking(${booking.booking_id})" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl font-semibold transition-colors flex-1">
+                        <i class="fas fa-times mr-2"></i>
+                        {{ _('Cancel Request') }}
+                    </button>
+                ` : ''}
+                
+                ${isPast(booking) && booking.status === 'confirmed' ? `
+                    <button onclick="rateRide(${booking.booking_id})" class="btn-premium flex-1 group">
+                        <i class="fas fa-star mr-2 group-hover:rotate-12 transition-transform"></i>
+                        {{ _('Rate Ride') }}
+                    </button>
+                ` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+// Get status class
+function getStatusClass(status, booking) {
+    if (status === 'confirmed' && isUpcoming(booking)) {
+        return 'bg-green-500/20 text-green-400';
+    } else if (status === 'confirmed' && isPast(booking)) {
+        return 'bg-blue-500/20 text-blue-400';
+    } else if (status === 'pending') {
+        return 'bg-yellow-500/20 text-yellow-400';
+    } else if (status === 'cancelled') {
+        return 'bg-red-500/20 text-red-400';
+    } else {
+        return 'bg-gray-500/20 text-gray-400';
+    }
+}
+
+// Get status text
+function getStatusText(status, booking) {
+    if (status === 'confirmed' && isUpcoming(booking)) {
+        return '{{ _("Upcoming") }}';
+    } else if (status === 'confirmed' && isPast(booking)) {
+        return '{{ _("Completed") }}';
+    } else if (status === 'pending') {
+        return '{{ _("Pending") }}';
+    } else if (status === 'cancelled') {
+        return '{{ _("Cancelled") }}';
+    } else {
+        return status;
+    }
+}
+
+// Generate star rating HTML
+function generateStars(rating) {
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 !== 0;
+    let stars = '';
+    
+    for (let i = 0; i < fullStars; i++) {
+        stars += '<i class="fas fa-star text-yellow-400 text-sm"></i>';
+    }
+    
+    if (hasHalfStar) {
+        stars += '<i class="fas fa-star-half-alt text-yellow-400 text-sm"></i>';
+    }
+    
+    const emptyStars = 5 - Math.ceil(rating);
+    for (let i = 0; i < emptyStars; i++) {
+        stars += '<i class="far fa-star text-yellow-400 text-sm"></i>';
+    }
+    
+    return stars;
+}
+
+// Format date
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+        weekday: 'short', 
+        month: 'short', 
+        day: 'numeric' 
+    });
+}
+
+// Format time
+function formatTime(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+    });
+}
+
+// Open chat modal
+function openChat(driverId, driverName, rideId) {
+    currentDriverId = driverId;
+    currentRideId = rideId;
+    
+    const modal = document.getElementById('chatModal');
+    const modalContent = document.getElementById('chatModalContent');
+    
+    // Update chat header
+    document.getElementById('driverAvatar').textContent = driverName.charAt(0).toUpperCase();
+    document.getElementById('chatTitle').textContent = `{{ _('Chat with') }} ${driverName}`;
+    document.getElementById('chatSubtitle').textContent = driverName;
+    
+    // Show modal with animation
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+        modalContent.classList.remove('scale-95', 'opacity-0');
+        modalContent.classList.add('scale-100', 'opacity-100');
+    }, 10);
+    
+    // Join private chat room
+    if (socket) {
+        socket.emit('join_private_chat', { other_user_id: driverId });
+    }
+    
+    // Load messages
+    loadMessages(driverId);
+}
+
+// Close chat modal
+function closeChat() {
+    const modal = document.getElementById('chatModal');
+    const modalContent = document.getElementById('chatModalContent');
+    
+    modalContent.classList.remove('scale-100', 'opacity-100');
+    modalContent.classList.add('scale-95', 'opacity-0');
+    
+    setTimeout(() => {
+        modal.classList.add('hidden');
+        currentDriverId = null;
+        currentRideId = null;
+        document.getElementById('chatMessages').innerHTML = '';
+        document.getElementById('messageInput').value = '';
+    }, 300);
+}
+
+// Load messages
+async function loadMessages(driverId) {
+    try {
+        const response = await fetch(`/api/messages/conversation/${driverId}`);
+        const messages = await response.json();
+        
+        const messagesContainer = document.getElementById('chatMessages');
+        messagesContainer.innerHTML = messages.map(msg => `
+            <div class="chat-message ${msg.sender_id === driverId ? 'justify-start' : 'justify-end'} flex">
+                <div class="max-w-xs px-4 py-3 rounded-2xl ${
+                    msg.sender_id === driverId 
+                        ? 'bg-white/10 backdrop-blur-md text-white' 
+                        : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+                }">
+                    <div class="text-sm">${msg.content}</div>
+                    <div class="text-xs mt-1 ${
+                        msg.sender_id === driverId ? 'text-white/60' : 'text-purple-200'
+                    }">
+                        ${new Date(msg.sent_at).toLocaleTimeString()}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        
+        // Scroll to bottom
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    } catch (error) {
+        console.error('Error loading messages:', error);
+    }
+}
+
+// Send message
+async function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const content = input.value.trim();
+    
+    if (!content || !currentDriverId || !currentRideId) return;
+    
+    // Use Socket.IO for real-time messaging
+    if (socket) {
+        socket.emit('send_private_message', {
+            receiver_id: currentDriverId,
+            ride_id: currentRideId,
+            content: content
+        });
+        input.value = '';
+    } else {
+        // Fallback to HTTP
+        try {
+            const response = await fetch('/api/messages/send', {
+                method: 'POST',
+                headers: csrfHeaders(),
+                body: JSON.stringify({
+                    receiver_id: currentDriverId,
+                    ride_id: currentRideId,
+                    content: content
+                })
+            });
+            
+            if (response.ok) {
+                input.value = '';
+                loadMessages(currentDriverId);
+            } else {
+                const err = await response.json();
+                showError(err.error || '{{ _("Failed to send message") }}');
+            }
+        } catch (error) {
+            console.error('Error sending message:', error);
+            showError('{{ _("Failed to send message") }}');
+        }
+    }
+}
+
+// Open cancel modal
+function openCancelModal(bookingId) {
+    const modal = document.getElementById('cancelModal');
+    const modalContent = document.getElementById('cancelModalContent');
+    
+    // Store booking ID
+    modalContent.dataset.bookingId = bookingId;
+    
+    // Show modal with animation
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+        modalContent.classList.remove('scale-95', 'opacity-0');
+        modalContent.classList.add('scale-100', 'opacity-100');
+    }, 10);
+}
+
+// Close cancel modal
+function closeCancelModal() {
+    const modal = document.getElementById('cancelModal');
+    const modalContent = document.getElementById('cancelModalContent');
+    
+    modalContent.classList.remove('scale-100', 'opacity-100');
+    modalContent.classList.add('scale-95', 'opacity-0');
+    
+    setTimeout(() => {
+        modal.classList.add('hidden');
+        delete modalContent.dataset.bookingId;
+    }, 300);
+}
+
+// Confirm cancel
+async function confirmCancel() {
+    const modalContent = document.getElementById('cancelModalContent');
+    const bookingId = parseInt(modalContent.dataset.bookingId);
+    
+    if (!bookingId) return;
+    
+    try {
+        const response = await fetch('/api/bookings/cancel', {
+            method: 'POST',
+            headers: csrfHeaders(),
+            body: JSON.stringify({ booking_id: bookingId })
+        });
+        
+        if (response.ok) {
+            showSuccess('{{ _("Booking cancelled successfully.") }}');
+            closeCancelModal();
+            loadBookings(); // Refresh bookings
+        } else {
+            const err = await response.json();
+            showError(err.error || '{{ _("Failed to cancel booking.") }}');
+        }
+    } catch (error) {
+        console.error('Error cancelling booking:', error);
+        showError('{{ _("Failed to cancel booking.") }}');
+    }
+}
+
+// Cancel booking (direct)
+async function cancelBooking(bookingId) {
+    if (!confirm('{{ _("Are you sure you want to cancel this booking?") }}')) return;
+    
+    try {
+        const response = await fetch('/api/bookings/cancel', {
+            method: 'POST',
+            headers: csrfHeaders(),
+            body: JSON.stringify({ booking_id: bookingId })
+        });
+        
+        if (response.ok) {
+            showSuccess('{{ _("Booking cancelled successfully.") }}');
+            loadBookings(); // Refresh bookings
+        } else {
+            const err = await response.json();
+            showError(err.error || '{{ _("Failed to cancel booking.") }}');
+        }
+    } catch (error) {
+        console.error('Error cancelling booking:', error);
+        showError('{{ _("Failed to cancel booking.") }}');
+    }
+}
+
+// Rate ride
+function rateRide(bookingId) {
+    // Redirect to rating page
+    window.location.href = `/api/ratings/rate/${bookingId}`;
+}
+
+// Show success message
+function showSuccess(message) {
+    const successDiv = document.createElement('div');
+    successDiv.className = 'fixed top-4 right-4 z-50 success-message fade-in';
+    successDiv.innerHTML = `
+        <div class="flex items-center gap-3">
+            <i class="fas fa-check-circle"></i>
+            <span>${message}</span>
+        </div>
+    `;
+    document.body.appendChild(successDiv);
+    setTimeout(() => successDiv.remove(), 5000);
+}
+
+// Show error message
+function showError(message) {
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'fixed top-4 right-4 z-50 error-message fade-in';
+    errorDiv.innerHTML = `
+        <div class="flex items-center gap-3">
+            <i class="fas fa-exclamation-circle"></i>
+            <span>${message}</span>
+        </div>
+    `;
+    document.body.appendChild(errorDiv);
+    setTimeout(() => errorDiv.remove(), 5000);
+}
+</script>
+{% endblock %}

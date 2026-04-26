@@ -7,21 +7,18 @@
         <input type="hidden" id="ride_id" value="{{ ride_id }}">
         <div class="mb-4">
             <label class="block text-gray-700 mb-2">{{ _('Rating (1-5 stars)') }}</label>
-            <div class="flex space-x-2 rtl:space-x-reverse" id="star-rating">
-                {# Stars will be generated with JS #}
-            </div>
+            <div class="flex space-x-2 rtl:space-x-reverse" id="star-rating"></div>
             <input type="hidden" id="rating_value" name="rating_value" required>
         </div>
         <div class="mb-4">
             <label class="block text-gray-700 mb-2">{{ _('Comment (optional)') }}</label>
             <textarea id="comment" rows="3" class="w-full border rounded-lg px-3 py-2"></textarea>
         </div>
-        <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded-lg w-full">{{ _('Submit Rating') }}</button>
+        <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded-lg w-full hover:bg-indigo-700 transition">{{ _('Submit Rating') }}</button>
     </form>
 </div>
 
 <script>
-    // Star rating UI
     const starContainer = document.getElementById('star-rating');
     const ratingInput = document.getElementById('rating_value');
     let currentRating = 0;
@@ -48,10 +45,10 @@
             alert('{{ _("Please select a rating") }}');
             return;
         }
-        const res = await fetch('/api/ratings/api/submit', {
+        const res = await fetch('/api/ratings/submit', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ ride_id: rideId, rating_value: parseInt(rating), comment })
+            headers: csrfHeaders(),
+            body: JSON.stringify({ ride_id: parseInt(rideId), rating_value: parseInt(rating), comment })
         });
         if (res.ok) {
             alert('{{ _("Thank you for your rating!") }}');

@@ -1,0 +1,437 @@
+{% extends "base_premium.html" %}
+{% block title %}{{ _('Home') }}{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="relative min-h-screen flex items-center justify-center overflow-hidden">
+    <!-- Animated Background Elements -->
+    <div class="absolute inset-0">
+        <div class="absolute top-20 left-20 w-72 h-72 bg-purple-500/30 rounded-full filter blur-3xl animate-pulse"></div>
+        <div class="absolute bottom-20 right-20 w-96 h-96 bg-indigo-500/30 rounded-full filter blur-3xl animate-pulse" style="animation-delay: 2s;"></div>
+        <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-pink-500/30 rounded-full filter blur-3xl animate-pulse" style="animation-delay: 4s;"></div>
+    </div>
+
+    <!-- Hero Content -->
+    <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <div class="stagger-item">
+            <!-- Logo Animation -->
+            <div class="mb-8 inline-block">
+                <div class="w-24 h-24 mx-auto bg-gradient-to-br from-indigo-600 to-purple-600 rounded-3xl flex items-center justify-center shadow-2xl hover:scale-110 transition-transform duration-500">
+                    <i class="fas fa-car-side text-white text-4xl"></i>
+                </div>
+            </div>
+            
+            <!-- Main Title -->
+            <h1 class="text-6xl md:text-7xl font-bold mb-6">
+                <span class="bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent">
+                    Uni<span class="text-purple-300">Ride</span>
+                </span>
+            </h1>
+            
+            <!-- Subtitle -->
+            <p class="text-xl md:text-2xl text-white/80 mb-12 max-w-3xl mx-auto leading-relaxed">
+                {{ _('Safe, affordable, and eco-friendly ridesharing for university students.') }}
+            </p>
+            
+            <!-- CTA Buttons -->
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-6 mb-16">
+                {% if current_user.is_authenticated %}
+                    {% if current_user.role in ['passenger', 'admin'] %}
+                        <a href="{{ url_for('ride.search_rides_page') }}" class="btn-premium text-lg px-8 py-4 group">
+                            <i class="fas fa-search mr-3 group-hover:rotate-12 transition-transform"></i>
+                            {{ _('Find a Ride') }}
+                        </a>
+                    {% endif %}
+                    {% if current_user.role in ['driver', 'admin'] %}
+                        <a href="{{ url_for('ride.offer_ride_page') }}" class="btn-secondary text-lg px-8 py-4 group">
+                            <i class="fas fa-plus-circle mr-3 group-hover:rotate-12 transition-transform"></i>
+                            {{ _('Offer a Ride') }}
+                        </a>
+                    {% endif %}
+                {% else %}
+                    <a href="{{ url_for('auth.register_page') }}" class="btn-premium text-lg px-8 py-4 group">
+                        <i class="fas fa-user-plus mr-3 group-hover:rotate-12 transition-transform"></i>
+                        {{ _('Sign Up') }}
+                    </a>
+                    <a href="{{ url_for('auth.login_page') }}" class="btn-secondary text-lg px-8 py-4 group">
+                        <i class="fas fa-sign-in-alt mr-3 group-hover:rotate-12 transition-transform"></i>
+                        {{ _('Login') }}
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Scroll Indicator -->
+    <div class="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
+        <i class="fas fa-chevron-down text-white/60 text-2xl"></i>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="py-20 relative">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-16">
+            <h2 class="text-4xl md:text-5xl font-bold mb-4">
+                <span class="bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
+                    {{ _('Why Choose UniRide?') }}
+                </span>
+            </h2>
+            <p class="text-xl text-white/70 max-w-2xl mx-auto">
+                {{ _('Experience the future of campus transportation') }}
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <!-- Feature 1 -->
+            <div class="glass-card p-8 text-center hover-scale group">
+                <div class="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center group-hover:rotate-12 transition-transform">
+                    <i class="fas fa-shield-alt text-white text-2xl"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-white mb-4">{{ _('Safe & Secure') }}</h3>
+                <p class="text-white/70 leading-relaxed">
+                    {{ _('Verified drivers, real-time tracking, and emergency features for your peace of mind.') }}
+                </p>
+            </div>
+
+            <!-- Feature 2 -->
+            <div class="glass-card p-8 text-center hover-scale group">
+                <div class="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center group-hover:rotate-12 transition-transform">
+                    <i class="fas fa-dollar-sign text-white text-2xl"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-white mb-4">{{ _('Affordable') }}</h3>
+                <p class="text-white/70 leading-relaxed">
+                    {{ _('Split costs with fellow students and save up to 70% compared to traditional transportation.') }}
+                </p>
+            </div>
+
+            <!-- Feature 3 -->
+            <div class="glass-card p-8 text-center hover-scale group">
+                <div class="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center group-hover:rotate-12 transition-transform">
+                    <i class="fas fa-leaf text-white text-2xl"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-white mb-4">{{ _('Eco-Friendly') }}</h3>
+                <p class="text-white/70 leading-relaxed">
+                    {{ _('Reduce your carbon footprint by sharing rides and contributing to a greener campus.') }}
+                </p>
+            </div>
+
+            <!-- Feature 4 -->
+            <div class="glass-card p-8 text-center hover-scale group">
+                <div class="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl flex items-center justify-center group-hover:rotate-12 transition-transform">
+                    <i class="fas fa-clock text-white text-2xl"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-white mb-4">{{ _('Flexible Schedule') }}</h3>
+                <p class="text-white/70 leading-relaxed">
+                    {{ _('Choose rides that fit your schedule with options for one-time or recurring trips.') }}
+                </p>
+            </div>
+
+            <!-- Feature 5 -->
+            <div class="glass-card p-8 text-center hover-scale group">
+                <div class="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center group-hover:rotate-12 transition-transform">
+                    <i class="fas fa-comments text-white text-2xl"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-white mb-4">{{ _('Easy Communication') }}</h3>
+                <p class="text-white/70 leading-relaxed">
+                    {{ _('Built-in chat system to coordinate with drivers and passengers seamlessly.') }}
+                </p>
+            </div>
+
+            <!-- Feature 6 -->
+            <div class="glass-card p-8 text-center hover-scale group">
+                <div class="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-pink-500 to-rose-500 rounded-2xl flex items-center justify-center group-hover:rotate-12 transition-transform">
+                    <i class="fas fa-star text-white text-2xl"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-white mb-4">{{ _('Rated Community') }}</h3>
+                <p class="text-white/70 leading-relaxed">
+                    {{ _('Rate your experience and help build a trusted community of reliable riders.') }}
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Stats Section -->
+<section class="py-20 relative">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="glass-card rounded-3xl p-12">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8 text-center">
+                <div class="stagger-item">
+                    <div class="text-4xl md:text-5xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent mb-2">
+                        10,000+
+                    </div>
+                    <p class="text-white/70">{{ _('Active Users') }}</p>
+                </div>
+                <div class="stagger-item">
+                    <div class="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent mb-2">
+                        50,000+
+                    </div>
+                    <p class="text-white/70">{{ _('Rides Completed') }}</p>
+                </div>
+                <div class="stagger-item">
+                    <div class="text-4xl md:text-5xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
+                        100+
+                    </div>
+                    <p class="text-white/70">{{ _('Universities') }}</p>
+                </div>
+                <div class="stagger-item">
+                    <div class="text-4xl md:text-5xl font-bold bg-gradient-to-r from-orange-400 to-red-400 bg-clip-text text-transparent mb-2">
+                        4.8★
+                    </div>
+                    <p class="text-white/70">{{ _('Average Rating') }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- How It Works Section -->
+<section class="py-20 relative">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-16">
+            <h2 class="text-4xl md:text-5xl font-bold mb-4">
+                <span class="bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
+                    {{ _('How It Works') }}
+                </span>
+            </h2>
+            <p class="text-xl text-white/70 max-w-2xl mx-auto">
+                {{ _('Get started with UniRide in three simple steps') }}
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <!-- Step 1 -->
+            <div class="text-center">
+                <div class="relative mb-8">
+                    <div class="w-20 h-20 mx-auto bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-2xl">
+                        1
+                    </div>
+                    <div class="absolute top-0 left-1/2 transform -translate-x-1/2 w-full h-0.5 bg-gradient-to-r from-transparent via-purple-500 to-transparent hidden md:block"></div>
+                </div>
+                <h3 class="text-2xl font-bold text-white mb-4">{{ _('Sign Up') }}</h3>
+                <p class="text-white/70 leading-relaxed">
+                    {{ _('Create your account in seconds with your university email.') }}
+                </p>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="text-center">
+                <div class="relative mb-8">
+                    <div class="w-20 h-20 mx-auto bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-2xl">
+                        2
+                    </div>
+                    <div class="absolute top-0 left-1/2 transform -translate-x-1/2 w-full h-0.5 bg-gradient-to-r from-transparent via-pink-500 to-transparent hidden md:block"></div>
+                </div>
+                <h3 class="text-2xl font-bold text-white mb-4">{{ _('Find or Offer Rides') }}</h3>
+                <p class="text-white/70 leading-relaxed">
+                    {{ _('Search for available rides or offer your own to share costs.') }}
+                </p>
+            </div>
+
+            <!-- Step 3 -->
+            <div class="text-center">
+                <div class="relative mb-8">
+                    <div class="w-20 h-20 mx-auto bg-gradient-to-br from-pink-500 to-rose-500 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-2xl">
+                        3
+                    </div>
+                </div>
+                <h3 class="text-2xl font-bold text-white mb-4">{{ _('Ride & Connect') }}</h3>
+                <p class="text-white/70 leading-relaxed">
+                    {{ _('Enjoy your ride and connect with fellow students on campus.') }}
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA Section -->
+<section class="py-20 relative">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="glass-card rounded-3xl p-12 text-center">
+            <h2 class="text-4xl md:text-5xl font-bold mb-6">
+                <span class="bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
+                    {{ _('Ready to Start Your Journey?') }}
+                </span>
+            </h2>
+            <p class="text-xl text-white/70 mb-8 max-w-2xl mx-auto">
+                {{ _('Join thousands of students already saving money and reducing their carbon footprint.') }}
+            </p>
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-6">
+                {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('ride.search_rides_page') }}" class="btn-premium text-lg px-8 py-4">
+                        <i class="fas fa-search mr-3"></i>
+                        {{ _('Find Rides Now') }}
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('auth.register_page') }}" class="btn-premium text-lg px-8 py-4">
+                        <i class="fas fa-rocket mr-3"></i>
+                        {{ _('Get Started Free') }}
+                    </a>
+                    <a href="{{ url_for('auth.login_page') }}" class="btn-secondary text-lg px-8 py-4">
+                        {{ _('Sign In') }}
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Testimonials Section -->
+<section class="py-20 relative">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-16">
+            <h2 class="text-4xl md:text-5xl font-bold mb-4">
+                <span class="bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
+                    {{ _('What Students Say') }}
+                </span>
+            </h2>
+            <p class="text-xl text-white/70 max-w-2xl mx-auto">
+                {{ _('Real experiences from our amazing community') }}
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <!-- Testimonial 1 -->
+            <div class="glass-card p-8 hover-lift">
+                <div class="flex items-center mb-4">
+                    <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold mr-4">
+                        S
+                    </div>
+                    <div>
+                        <h4 class="text-white font-semibold">Sarah Johnson</h4>
+                        <p class="text-white/60 text-sm">Computer Science</p>
+                    </div>
+                </div>
+                <div class="flex mb-4">
+                    <i class="fas fa-star text-yellow-400"></i>
+                    <i class="fas fa-star text-yellow-400"></i>
+                    <i class="fas fa-star text-yellow-400"></i>
+                    <i class="fas fa-star text-yellow-400"></i>
+                    <i class="fas fa-star text-yellow-400"></i>
+                </div>
+                <p class="text-white/70 leading-relaxed">
+                    "UniRide has completely changed my commute. I save over $200 every month and have made great friends along the way!"
+                </p>
+            </div>
+
+            <!-- Testimonial 2 -->
+            <div class="glass-card p-8 hover-lift">
+                <div class="flex items-center mb-4">
+                    <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center text-white font-bold mr-4">
+                        M
+                    </div>
+                    <div>
+                        <h4 class="text-white font-semibold">Michael Chen</h4>
+                        <p class="text-white/60 text-sm">Business Administration</p>
+                    </div>
+                </div>
+                <div class="flex mb-4">
+                    <i class="fas fa-star text-yellow-400"></i>
+                    <i class="fas fa-star text-yellow-400"></i>
+                    <i class="fas fa-star text-yellow-400"></i>
+                    <i class="fas fa-star text-yellow-400"></i>
+                    <i class="fas fa-star text-yellow-400"></i>
+                </div>
+                <p class="text-white/70 leading-relaxed">
+                    "As a driver, I love helping fellow students while covering my gas costs. The app makes everything so easy!"
+                </p>
+            </div>
+
+            <!-- Testimonial 3 -->
+            <div class="glass-card p-8 hover-lift">
+                <div class="flex items-center mb-4">
+                    <div class="w-12 h-12 bg-gradient-to-br from-pink-500 to-rose-500 rounded-full flex items-center justify-center text-white font-bold mr-4">
+                        E
+                    </div>
+                    <div>
+                        <h4 class="text-white font-semibold">Emily Rodriguez</h4>
+                        <p class="text-white/60 text-sm">Environmental Science</p>
+                    </div>
+                </div>
+                <div class="flex mb-4">
+                    <i class="fas fa-star text-yellow-400"></i>
+                    <i class="fas fa-star text-yellow-400"></i>
+                    <i class="fas fa-star text-yellow-400"></i>
+                    <i class="fas fa-star text-yellow-400"></i>
+                    <i class="fas fa-star text-yellow-400"></i>
+                </div>
+                <p class="text-white/70 leading-relaxed">
+                    "I feel good about reducing my carbon footprint. Plus, the chat feature makes coordinating rides super convenient!"
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Enhanced scroll animations
+    const observerOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -100px 0px'
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('fade-in');
+            }
+        });
+    }, observerOptions);
+
+    // Observe all sections
+    document.querySelectorAll('section').forEach(section => {
+        observer.observe(section);
+    });
+
+    // Parallax effect for hero section
+    window.addEventListener('scroll', () => {
+        const scrolled = window.pageYOffset;
+        const parallax = document.querySelector('.hero-parallax');
+        if (parallax) {
+            parallax.style.transform = `translateY(${scrolled * 0.5}px)`;
+        }
+    });
+
+    // Counter animation for stats
+    const animateCounters = () => {
+        const counters = document.querySelectorAll('.counter');
+        counters.forEach(counter => {
+            const target = parseInt(counter.getAttribute('data-target'));
+            const increment = target / 200;
+            let current = 0;
+
+            const updateCounter = () => {
+                if (current < target) {
+                    current += increment;
+                    counter.textContent = Math.ceil(current).toLocaleString();
+                    requestAnimationFrame(updateCounter);
+                } else {
+                    counter.textContent = target.toLocaleString();
+                }
+            };
+
+            updateCounter();
+        });
+    };
+
+    // Trigger counter animation when stats section is visible
+    const statsSection = document.querySelector('.stats-section');
+    if (statsSection) {
+        const statsObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    animateCounters();
+                    statsObserver.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.5 });
+
+        statsObserver.observe(statsSection);
+    }
+});
+</script>
+{% endblock %}

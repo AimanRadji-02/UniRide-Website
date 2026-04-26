@@ -1,0 +1,538 @@
+{% extends "base_premium.html" %}
+{% block title %}{{ _('Offer a Ride') }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <!-- Header Section -->
+    <div class="text-center mb-12 fade-in">
+        <h1 class="text-4xl md:text-5xl font-bold mb-4">
+            <span class="bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
+                {{ _('Offer Your Ride') }}
+            </span>
+        </h1>
+        <p class="text-xl text-white/70 max-w-2xl mx-auto">
+            {{ _('Share your journey and help fellow students while covering your costs') }}
+        </p>
+    </div>
+
+    <!-- Ride Form -->
+    <div class="glass-card rounded-3xl p-8 fade-in">
+        <form id="offerRideForm" class="form-premium">
+            <!-- Route Section -->
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-route text-white"></i>
+                    </div>
+                    {{ _('Route Information') }}
+                </h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Origin -->
+                    <div class="form-group">
+                        <label for="origin" class="flex items-center gap-2">
+                            <i class="fas fa-map-marker-alt text-purple-400"></i>
+                            {{ _('Origin') }}
+                            <span class="text-red-400">*</span>
+                        </label>
+                        <input type="text" id="origin" name="origin" 
+                               placeholder="{{ _('e.g. King Saud University, Main Gate') }}" 
+                               class="w-full" required>
+                        <div class="mt-2 text-white/60 text-sm">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            {{ _('Be specific for easier pickup') }}
+                        </div>
+                    </div>
+
+                    <!-- Destination -->
+                    <div class="form-group">
+                        <label for="destination" class="flex items-center gap-2">
+                            <i class="fas fa-flag-checkered text-purple-400"></i>
+                            {{ _('Destination') }}
+                            <span class="text-red-400">*</span>
+                        </label>
+                        <input type="text" id="destination" name="destination" 
+                               placeholder="{{ _('e.g. Riyadh Park Mall, Entrance A') }}" 
+                               class="w-full" required>
+                        <div class="mt-2 text-white/60 text-sm">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            {{ _('Include landmarks if possible') }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Schedule Section -->
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-calendar-alt text-white"></i>
+                    </div>
+                    {{ _('Schedule') }}
+                </h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Departure Date & Time -->
+                    <div class="form-group">
+                        <label for="departure_datetime" class="flex items-center gap-2">
+                            <i class="fas fa-clock text-purple-400"></i>
+                            {{ _('Departure Date & Time') }}
+                            <span class="text-red-400">*</span>
+                        </label>
+                        <input type="datetime-local" id="departure_datetime" name="departure_datetime" 
+                               class="w-full" required>
+                        <div class="mt-2 text-white/60 text-sm">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            {{ _('Set departure time 15+ minutes from now') }}
+                        </div>
+                    </div>
+
+                    <!-- Recurring Options -->
+                    <div class="form-group">
+                        <label for="recurring_days" class="flex items-center gap-2">
+                            <i class="fas fa-repeat text-purple-400"></i>
+                            {{ _('Recurring Days (optional)') }}
+                        </label>
+                        <select id="recurring_days" name="recurring_days" class="w-full">
+                            <option value="">{{ _('One-time ride') }}</option>
+                            <option value="mon,wed,fri">{{ _('Mon, Wed, Fri') }}</option>
+                            <option value="tue,thu">{{ _('Tue, Thu') }}</option>
+                            <option value="mon,tue,wed,thu,fri">{{ _('Weekdays') }}</option>
+                            <option value="sat,sun">{{ _('Weekends') }}</option>
+                            <option value="mon,tue,wed,thu,fri,sat,sun">{{ _('Daily') }}</option>
+                        </select>
+                        <div class="mt-2 text-white/60 text-sm">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            {{ _('Create recurring rides for regular commutes') }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Vehicle & Capacity Section -->
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-car text-white"></i>
+                    </div>
+                    {{ _('Vehicle & Capacity') }}
+                </h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Available Seats -->
+                    <div class="form-group">
+                        <label for="available_seats" class="flex items-center gap-2">
+                            <i class="fas fa-users text-purple-400"></i>
+                            {{ _('Available Seats') }}
+                            <span class="text-red-400">*</span>
+                        </label>
+                        <select id="available_seats" name="available_seats" class="w-full" required>
+                            <option value="1">1 {{ _('Seat') }}</option>
+                            <option value="2">2 {{ _('Seats') }}</option>
+                            <option value="3">3 {{ _('Seats') }}</option>
+                            <option value="4">4 {{ _('Seats') }}</option>
+                            <option value="5">5 {{ _('Seats') }}</option>
+                            <option value="6">6 {{ _('Seats') }}</option>
+                            <option value="7">7 {{ _('Seats') }}</option>
+                            <option value="8">8 {{ _('Seats') }}</option>
+                        </select>
+                        <div class="mt-2 text-white/60 text-sm">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            {{ _('Number of passengers you can take') }}
+                        </div>
+                    </div>
+
+                    <!-- Price per Seat -->
+                    <div class="form-group">
+                        <label for="price_per_seat" class="flex items-center gap-2">
+                            <i class="fas fa-dollar-sign text-purple-400"></i>
+                            {{ _('Price per Seat ($)') }}
+                            <span class="text-red-400">*</span>
+                        </label>
+                        <input type="number" id="price_per_seat" name="price_per_seat" 
+                               min="0" step="0.5" placeholder="5.00" 
+                               class="w-full" required>
+                        <div class="mt-2 text-white/60 text-sm">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            {{ _('Suggested: $3-8 for local trips') }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vehicle Details -->
+                <div class="form-group">
+                    <label for="vehicle_details" class="flex items-center gap-2">
+                        <i class="fas fa-info-circle text-purple-400"></i>
+                        {{ _('Vehicle Details (optional)') }}
+                    </label>
+                    <textarea id="vehicle_details" name="vehicle_details" rows="3" 
+                              placeholder="{{ _('e.g. Toyota Camry, Silver, License plate: ABC-1234') }}" 
+                              class="w-full"></textarea>
+                    <div class="mt-2 text-white/60 text-sm">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        {{ _('Help passengers identify your vehicle easily') }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Additional Preferences -->
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-cog text-white"></i>
+                    </div>
+                    {{ _('Additional Preferences') }}
+                </h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Smoking Policy -->
+                    <div class="form-group">
+                        <label class="flex items-center gap-2 mb-3">
+                            <i class="fas fa-smoking-ban text-purple-400"></i>
+                            {{ _('Smoking Policy') }}
+                        </label>
+                        <div class="space-y-2">
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="radio" name="smoking_policy" value="no_smoking" checked 
+                                       class="w-4 h-4 text-purple-600">
+                                <span class="text-white">{{ _('No Smoking') }}</span>
+                            </label>
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="radio" name="smoking_policy" value="smoking_allowed" 
+                                       class="w-4 h-4 text-purple-600">
+                                <span class="text-white">{{ _('Smoking Allowed') }}</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Music Preference -->
+                    <div class="form-group">
+                        <label class="flex items-center gap-2 mb-3">
+                            <i class="fas fa-music text-purple-400"></i>
+                            {{ _('Music Preference') }}
+                        </label>
+                        <div class="space-y-2">
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="radio" name="music_preference" value="any" checked 
+                                       class="w-4 h-4 text-purple-600">
+                                <span class="text-white">{{ _('Any Music') }}</span>
+                            </label>
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="radio" name="music_preference" value="no_music" 
+                                       class="w-4 h-4 text-purple-600">
+                                <span class="text-white">{{ _('No Music') }}</span>
+                            </label>
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="radio" name="music_preference" value="passenger_choice" 
+                                       class="w-4 h-4 text-purple-600">
+                                <span class="text-white">{{ _('Passenger Choice') }}</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional Notes -->
+                <div class="form-group">
+                    <label for="additional_notes" class="flex items-center gap-2">
+                        <i class="fas fa-comment text-purple-400"></i>
+                        {{ _('Additional Notes (optional)') }}
+                    </label>
+                    <textarea id="additional_notes" name="additional_notes" rows="3" 
+                              placeholder="{{ _('Any special instructions or preferences for passengers...') }}" 
+                              class="w-full"></textarea>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="flex flex-col sm:flex-row gap-4 pt-8 border-t border-white/20">
+                <button type="button" onclick="resetForm()" class="btn-secondary flex-1 group">
+                    <i class="fas fa-redo mr-2 group-hover:rotate-12 transition-transform"></i>
+                    {{ _('Reset Form') }}
+                </button>
+                <button type="submit" class="btn-premium flex-1 group">
+                    <i class="fas fa-plus-circle mr-2 group-hover:rotate-12 transition-transform"></i>
+                    {{ _('Post Ride') }}
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Success Modal -->
+    <div id="successModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+        <div class="glass-card rounded-3xl max-w-md w-full p-8 text-center transform scale-95 opacity-0 transition-all" id="successModalContent">
+            <div class="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center">
+                <i class="fas fa-check text-white text-3xl"></i>
+            </div>
+            <h3 class="text-2xl font-bold text-white mb-4">{{ _('Ride Posted Successfully!') }}</h3>
+            <p class="text-white/70 mb-6">
+                {{ _('Your ride has been posted and is now available for passengers to book.') }}
+            </p>
+            <div class="flex gap-4">
+                <button onclick="closeSuccessModal()" class="btn-secondary flex-1">
+                    {{ _('Post Another Ride') }}
+                </button>
+                <a href="{{ url_for('ride.driver_dashboard') }}" class="btn-premium flex-1">
+                    {{ _('View Dashboard') }}
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    // Set minimum datetime to current time + 15 minutes
+    const datetimeInput = document.getElementById('departure_datetime');
+    if (datetimeInput) {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() + 15);
+        const minDateTime = now.toISOString().slice(0, 16);
+        datetimeInput.min = minDateTime;
+        datetimeInput.value = minDateTime;
+    }
+
+    // Form submission
+    document.getElementById('offerRideForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        submitRide();
+    });
+
+    // Auto-save form data
+    const formInputs = document.querySelectorAll('#offerRideForm input, #offerRideForm select, #offerRideForm textarea');
+    formInputs.forEach(input => {
+        // Load saved data
+        const savedValue = localStorage.getItem(`ride_form_${input.name}`);
+        if (savedValue && input.type !== 'password') {
+            input.value = savedValue;
+        }
+
+        // Save on change
+        input.addEventListener('change', function() {
+            if (this.type !== 'password') {
+                localStorage.setItem(`ride_form_${this.name}`, this.value);
+            }
+        });
+    });
+});
+
+// Submit ride
+async function submitRide() {
+    const submitBtn = document.querySelector('#offerRideForm button[type="submit"]');
+    const formData = new FormData(document.getElementById('offerRideForm'));
+    
+    // Validate form
+    if (!validateForm(formData)) {
+        return;
+    }
+
+    // Show loading state
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>{{ _("Posting...") }}';
+
+    try {
+        const data = {
+            origin: formData.get('origin'),
+            destination: formData.get('destination'),
+            departure_datetime: formData.get('departure_datetime'),
+            available_seats: parseInt(formData.get('available_seats')),
+            price_per_seat: parseFloat(formData.get('price_per_seat')),
+            recurring_days: formData.get('recurring_days') || null,
+            vehicle_details: formData.get('vehicle_details') || null
+        };
+
+        const response = await fetch('/api/rides/create', {
+            method: 'POST',
+            headers: csrfHeaders(),
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            // Clear saved form data
+            formInputs.forEach(input => {
+                localStorage.removeItem(`ride_form_${input.name}`);
+            });
+            
+            showSuccessModal();
+        } else {
+            showError(result.error || '{{ _("Failed to post ride. Please try again.") }}');
+        }
+    } catch (error) {
+        console.error('Error posting ride:', error);
+        showError('{{ _("Failed to post ride. Please try again.") }}');
+    } finally {
+        // Reset button state
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-plus-circle mr-2"></i>{{ _("Post Ride") }}';
+    }
+}
+
+// Validate form
+function validateForm(formData) {
+    const origin = formData.get('origin').trim();
+    const destination = formData.get('destination').trim();
+    const departureDatetime = formData.get('departure_datetime');
+    const availableSeats = parseInt(formData.get('available_seats'));
+    const pricePerSeat = parseFloat(formData.get('price_per_seat'));
+
+    // Check required fields
+    if (!origin || !destination || !departureDatetime) {
+        showError('{{ _("Please fill in all required fields.") }}');
+        return false;
+    }
+
+    // Check departure time is in the future
+    const departureTime = new Date(departureDatetime);
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + 15); // 15 minutes buffer
+    
+    if (departureTime < now) {
+        showError('{{ _("Departure time must be at least 15 minutes from now.") }}');
+        return false;
+    }
+
+    // Check seats and price
+    if (availableSeats < 1 || availableSeats > 8) {
+        showError('{{ _("Available seats must be between 1 and 8.") }}');
+        return false;
+    }
+
+    if (pricePerSeat < 0 || pricePerSeat > 100) {
+        showError('{{ _("Price per seat must be between $0 and $100.") }}');
+        return false;
+    }
+
+    // Check origin and destination are different
+    if (origin.toLowerCase() === destination.toLowerCase()) {
+        showError('{{ _("Origin and destination must be different.") }}');
+        return false;
+    }
+
+    return true;
+}
+
+// Reset form
+function resetForm() {
+    if (confirm('{{ _("Are you sure you want to reset the form? All data will be lost.") }}')) {
+        document.getElementById('offerRideForm').reset();
+        
+        // Clear saved data
+        const formInputs = document.querySelectorAll('#offerRideForm input, #offerRideForm select, #offerRideForm textarea');
+        formInputs.forEach(input => {
+            localStorage.removeItem(`ride_form_${input.name}`);
+        });
+
+        // Reset datetime
+        const datetimeInput = document.getElementById('departure_datetime');
+        const now = new Date();
+        now.setMinutes(now.getMinutes() + 15);
+        const minDateTime = now.toISOString().slice(0, 16);
+        datetimeInput.value = minDateTime;
+
+        showSuccess('{{ _("Form has been reset.") }}');
+    }
+}
+
+// Show success modal
+function showSuccessModal() {
+    const modal = document.getElementById('successModal');
+    const modalContent = document.getElementById('successModalContent');
+    
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+        modalContent.classList.remove('scale-95', 'opacity-0');
+        modalContent.classList.add('scale-100', 'opacity-100');
+    }, 10);
+}
+
+// Close success modal
+function closeSuccessModal() {
+    const modal = document.getElementById('successModal');
+    const modalContent = document.getElementById('successModalContent');
+    
+    modalContent.classList.remove('scale-100', 'opacity-100');
+    modalContent.classList.add('scale-95', 'opacity-0');
+    
+    setTimeout(() => {
+        modal.classList.add('hidden');
+        resetForm();
+    }, 300);
+}
+
+// Show success message
+function showSuccess(message) {
+    const successDiv = document.createElement('div');
+    successDiv.className = 'fixed top-4 right-4 z-50 success-message fade-in';
+    successDiv.innerHTML = `
+        <div class="flex items-center gap-3">
+            <i class="fas fa-check-circle"></i>
+            <span>${message}</span>
+        </div>
+    `;
+    document.body.appendChild(successDiv);
+    setTimeout(() => successDiv.remove(), 5000);
+}
+
+// Show error message
+function showError(message) {
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'fixed top-4 right-4 z-50 error-message fade-in';
+    errorDiv.innerHTML = `
+        <div class="flex items-center gap-3">
+            <i class="fas fa-exclamation-circle"></i>
+            <span>${message}</span>
+        </div>
+    `;
+    document.body.appendChild(errorDiv);
+    setTimeout(() => errorDiv.remove(), 5000);
+}
+
+// Auto-suggest locations (mock implementation)
+function initializeLocationAutocomplete() {
+    const originInput = document.getElementById('origin');
+    const destinationInput = document.getElementById('destination');
+    
+    const commonLocations = [
+        'King Saud University - Main Gate',
+        'King Saud University - College of Engineering',
+        'King Saud University - College of Medicine',
+        'Riyadh Park Mall - Entrance A',
+        'Riyadh Park Mall - Entrance B',
+        'Panorama Mall - Main Entrance',
+        'King Abdullah Financial District',
+        'Riyadh Metro - King Saud University Station'
+    ];
+
+    function createAutocomplete(input, locations) {
+        let suggestions = [];
+        
+        input.addEventListener('input', function() {
+            const value = this.value.toLowerCase();
+            if (value.length < 2) {
+                suggestions = [];
+                return;
+            }
+
+            suggestions = locations.filter(location => 
+                location.toLowerCase().includes(value)
+            );
+        });
+
+        input.addEventListener('blur', function() {
+            // Clear suggestions after a short delay
+            setTimeout(() => suggestions = [], 200);
+        });
+    }
+
+    createAutocomplete(originInput, commonLocations);
+    createAutocomplete(destinationInput, commonLocations);
+}
+
+// Initialize autocomplete
+initializeLocationAutocomplete();
+</script>
+{% endblock %}

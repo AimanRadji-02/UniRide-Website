@@ -1,85 +1,110 @@
 {% extends "base.html" %}
-{% block title %}Live Tracking - Ride {{ ride.ride_id }}{% endblock %}
-{% block head_extra %}
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-{% endblock %}
+{% block title %}Live Tracking — Ride {{ ride.ride_id }}{% endblock %}
 {% block content %}
-<div class="max-w-5xl mx-auto">
-    <h1 class="text-2xl font-bold mb-4">Tracking: {{ ride.origin }} → {{ ride.destination }}</h1>
-    <div id="map" class="h-96 rounded-xl shadow mb-4"></div>
-    <div class="grid md:grid-cols-2 gap-4">
-        <div class="bg-white rounded-xl shadow p-4">
-            <h2 class="font-bold mb-2">Live Chat</h2>
-            <div id="chatMessages" class="h-64 overflow-y-auto border rounded p-2 mb-2"></div>
+<div class="max-w-5xl mx-auto space-y-6">
+    <div>
+        <p class="text-sm font-semibold text-indigo-600 uppercase tracking-wide">{{ _('Live Track') }}</p>
+        <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 mt-1">Tracking: {{ ride.origin }} → {{ ride.destination }}</h1>
+    </div>
+
+    {% if not google_maps_enabled %}
+    <div class="rounded-xl border border-amber-200 bg-amber-50 text-amber-900 text-sm p-4">{{ _('Map unavailable') }}. {{ _('Add a Google Maps API key') }}.</div>
+    {% endif %}
+    <div id="map" class="gmap-canvas h-[420px] min-h-[320px] bg-slate-100"></div>
+
+    <div class="grid md:grid-cols-2 gap-6">
+        <div class="ur-card p-5 sm:p-6">
+            <h2 class="font-bold text-slate-900 mb-3">{{ _('Live Track') }} — Chat</h2>
+            <div id="chatMessages" class="h-64 overflow-y-auto border border-slate-100 rounded-xl p-3 mb-3 bg-slate-50 text-sm"></div>
             <div class="flex gap-2">
-                <input type="text" id="chatInput" class="flex-1 border rounded px-3 py-2" placeholder="Type message...">
-                <button id="sendBtn" class="bg-indigo-600 text-white px-4 py-2 rounded">Send</button>
+                <input type="text" id="chatInput" class="flex-1 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Type message...">
+                <button type="button" id="sendBtn" class="bg-indigo-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-indigo-700">Send</button>
             </div>
         </div>
-        <div class="bg-white rounded-xl shadow p-4">
-            <h2 class="font-bold mb-2">Emergency</h2>
-            <button id="sosBtn" class="bg-red-600 text-white px-6 py-3 rounded-lg text-lg w-full">🚨 SOS EMERGENCY</button>
-            <p class="text-sm text-gray-500 mt-2">Triggers instant alert to driver, passengers, and admin.</p>
+        <div class="ur-card p-5 sm:p-6">
+            <h2 class="font-bold text-slate-900 mb-3">{{ _('SOS Alert') }}</h2>
+            <button type="button" id="sosBtn" class="w-full bg-red-600 text-white px-6 py-4 rounded-xl text-lg font-bold shadow hover:bg-red-700">🚨 SOS EMERGENCY</button>
+            <p class="text-sm text-slate-500 mt-3">Triggers instant alert to driver, passengers, and admin.</p>
         </div>
     </div>
 </div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
 <script>
+(function() {
+    const mapsOn = {{ 'true' if google_maps_enabled else 'false' }};
     const rideId = {{ ride.ride_id }};
     const isDriver = {{ 'true' if is_driver else 'false' }};
     const socket = io();
-    let map = L.map('map').setView([24.7136, 46.6753], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-    let driverMarker = null;
-    
+    let map, driverMarker;
+
+    function initTrackMap() {
+        if (!mapsOn) return;
+        map = new google.maps.Map(document.getElementById('map'), {
+            center: { lat: 24.7136, lng: 46.6753 },
+            zoom: 13,
+            mapTypeControl: false
+        });
+    }
+
+    if (mapsOn) queueUniRideMap(initTrackMap);
+
     socket.emit('join_ride_tracking', { ride_id: rideId });
     socket.emit('join_chat_room', { ride_id: rideId });
-    
+
+    function setDriverPosition(lat, lng) {
+        if (!mapsOn || !map) return;
+        const pos = { lat: lat, lng: lng };
+        if (!driverMarker) {
+            driverMarker = new google.maps.Marker({ position: pos, map: map, title: 'Driver' });
+        } else {
+            driverMarker.setPosition(pos);
+        }
+        map.panTo(pos);
+    }
+
     if (isDriver) {
-        setInterval(() => {
-            if ("geolocation" in navigator) {
-                navigator.geolocation.getCurrentPosition(pos => {
-                    const { latitude, longitude } = pos.coords;
-                    socket.emit('update_location', { ride_id: rideId, latitude, longitude });
-                    if (!driverMarker) driverMarker = L.marker([latitude, longitude]).addTo(map);
-                    else driverMarker.setLatLng([latitude, longitude]);
-                    map.setView([latitude, longitude], 15);
-                });
-            }
+        setInterval(function() {
+            if (!('geolocation' in navigator)) return;
+            navigator.geolocation.getCurrentPosition(function(pos) {
+                var lat = pos.coords.latitude, lng = pos.coords.longitude;
+                socket.emit('update_location', { ride_id: rideId, latitude: lat, longitude: lng });
+                setDriverPosition(lat, lng);
+            });
         }, 5000);
     }
-    
-    socket.on('location_updated', (data) => {
-        if (!driverMarker) driverMarker = L.marker([data.latitude, data.longitude]).addTo(map);
-        else driverMarker.setLatLng([data.latitude, data.longitude]);
-        map.setView([data.latitude, data.longitude], 15);
+
+    socket.on('location_updated', function(data) {
+        setDriverPosition(data.latitude, data.longitude);
     });
-    
-    // Chat
-    socket.on('new_chat_message', (msg) => {
-        const div = document.getElementById('chatMessages');
-        div.innerHTML += `<div><strong>${msg.sender}:</strong> ${msg.content} <small>${new Date(msg.timestamp).toLocaleTimeString()}</small></div>`;
+
+    socket.on('new_chat_message', function(msg) {
+        var div = document.getElementById('chatMessages');
+        div.innerHTML += '<div class="py-1 border-b border-slate-100 last:border-0"><strong>' + msg.sender + ':</strong> ' + msg.content +
+            ' <small class="text-slate-400">' + new Date(msg.timestamp).toLocaleTimeString() + '</small></div>';
         div.scrollTop = div.scrollHeight;
     });
-    document.getElementById('sendBtn').onclick = () => {
-        const input = document.getElementById('chatInput');
+
+    document.getElementById('sendBtn').onclick = function() {
+        var input = document.getElementById('chatInput');
         if (input.value.trim()) {
             socket.emit('send_chat_message', { ride_id: rideId, content: input.value });
             input.value = '';
         }
     };
-    
-    // SOS
-    document.getElementById('sosBtn').onclick = () => {
-        if (confirm("Trigger SOS? Emergency services will be notified.")) {
-            navigator.geolocation.getCurrentPosition(pos => {
-                socket.emit('trigger_sos', { ride_id: rideId, gps_location: `${pos.coords.latitude},${pos.coords.longitude}` });
-            }, () => {
-                socket.emit('trigger_sos', { ride_id: rideId, gps_location: "Unknown" });
+
+    document.getElementById('sosBtn').onclick = function() {
+        if (!confirm('Trigger SOS? Emergency services will be notified.')) return;
+        if ('geolocation' in navigator) {
+            navigator.geolocation.getCurrentPosition(function(pos) {
+                socket.emit('trigger_sos', { ride_id: rideId, gps_location: pos.coords.latitude + ',' + pos.coords.longitude });
+            }, function() {
+                socket.emit('trigger_sos', { ride_id: rideId, gps_location: 'Unknown' });
             });
-            alert("SOS sent! Help is on the way.");
+        } else {
+            socket.emit('trigger_sos', { ride_id: rideId, gps_location: 'Unknown' });
         }
+        alert('SOS sent! Help is on the way.');
     };
+})();
 </script>
 {% endblock %}

@@ -3,93 +3,231 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>UniRide - {% block title %}{% endblock %}</title>
-    <!-- Tailwind CSS + Font Awesome (icons) -->
+    <title>UniRide — {% block title %}{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <!-- Leaflet CSS (for map templates) -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <!-- Custom styles for RTL adjustments -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
     <style>
-        body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif; }
-        .rtl .ml-2 { margin-left: 0; margin-right: 0.5rem; }
-        .rtl .mr-2 { margin-right: 0; margin-left: 0.5rem; }
-        .rtl .space-x-4 > :not([hidden]) ~ :not([hidden]) { --tw-space-x-reverse: 1; }
-        /* Leaflet map container */
-        #map { height: 400px; width: 100%; border-radius: 0.5rem; }
+        body { font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; }
     </style>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     {% block head_extra %}{% endblock %}
+    
+    <!-- Notification Management -->
+    <script>
+        let notificationCount = 0;
+        let notificationTimeout;
+        
+        function showNotificationBadge(message) {
+            // Fetch actual unread count from database
+            updateNotificationBadge();
+            
+            // Also show browser notification
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification('New Message', {
+                    body: message,
+                    icon: '/static/images/chat-icon.png'
+                });
+            }
+        }
+        
+        // Get the appropriate notification badge ID based on user role
+        function getNotificationBadgeId() {
+            const userRole = '{{ current_user.role if current_user.is_authenticated else "" }}';
+            if (userRole === 'driver') {
+                return 'driverChatNotificationBadge';
+            } else if (userRole === 'passenger') {
+                return 'passengerChatNotificationBadge';
+            } else if (userRole === 'admin') {
+                return 'adminChatNotificationBadge';
+            }
+            return 'chatNotificationBadge'; // fallback
+        }
+        
+        // Update notification badge with actual unread count
+        async function updateNotificationBadge() {
+            try {
+                const res = await fetch('/api/chat/unread-count');
+                const data = await res.json();
+                
+                const badgeId = getNotificationBadgeId();
+                const badge = document.getElementById(badgeId);
+                
+                if (badge && data.unread_count > 0) {
+                    notificationCount = data.unread_count;
+                    badge.textContent = notificationCount > 9 ? '9+' : notificationCount.toString();
+                    badge.classList.remove('hidden');
+                    localStorage.setItem('unreadChatCount', notificationCount.toString());
+                } else if (badge) {
+                    badge.classList.add('hidden');
+                    localStorage.setItem('unreadChatCount', '0');
+                }
+            } catch (error) {
+                console.error('Error updating notification badge:', error);
+            }
+        }
+        
+        function clearNotifications() {
+            const badgeId = getNotificationBadgeId();
+            const badge = document.getElementById(badgeId);
+            
+            if (badge) {
+                badge.classList.add('hidden');
+                badge.textContent = '0';
+                notificationCount = 0;
+                localStorage.setItem('unreadChatCount', '0');
+            }
+        }
+        
+        // Mark messages as read when user opens chat page
+        function markMessagesAsRead() {
+            clearNotifications();
+        }
+        
+        // Request notification permission on load and fetch actual unread count
+        document.addEventListener('DOMContentLoaded', function() {
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+            
+            // Fetch actual unread count from database
+            updateNotificationBadge();
+        });
+    </script>
 </head>
-<body class="bg-gray-50 {{ 'rtl' if session.get('lang') == 'ar' else '' }}">
-    <!-- Navbar -->
-    <nav class="bg-white shadow-lg sticky top-0 z-50">
+<body class="ur-body text-slate-800 min-h-screen flex flex-col {{ 'rtl' if session.get('lang') == 'ar' else '' }}">
+    <div id="mobileOverlay" class="fixed inset-0 bg-slate-900/40 z-40 hidden" onclick="closeMobileMenu()"></div>
+
+    <nav class="sticky top-0 z-50 border-b border-slate-200/80 bg-white/90 ur-nav-blur shadow-sm">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
-                <div class="flex items-center space-x-4 rtl:space-x-reverse">
-                    <a href="/" class="text-xl font-bold text-indigo-600"><i class="fas fa-car-side mr-2"></i>UniRide</a>
+                <div class="flex items-center gap-6 rtl:gap-reverse">
+                    <a href="/" class="text-lg font-bold tracking-tight flex items-center gap-2 text-slate-900">
+                        <span class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 to-cyan-500 text-white shadow-md">
+                            <i class="fas fa-car-side"></i>
+                        </span>
+                        <span>Uni<span class="text-indigo-600">Ride</span></span>
+                    </a>
                     {% if current_user.is_authenticated %}
-                        <div class="hidden md:flex space-x-4 rtl:space-x-reverse">
+                        <div class="hidden md:flex items-center gap-1 rtl:gap-reverse">
                             {% if current_user.role == 'driver' %}
-                                <a href="{{ url_for('ride.offer_ride_page') }}" class="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">
-                                    <i class="fas fa-plus-circle"></i> {{ _('Offer Ride') }}
+                                <a href="{{ url_for('ride.offer_ride_page') }}" class="text-slate-600 hover:text-indigo-600 px-3 py-2 rounded-lg text-sm font-medium transition">
+                                    <i class="fas fa-plus-circle mr-1 opacity-80"></i>{{ _('Offer Ride') }}
+                                </a>
+                                <a href="{{ url_for('ride.driver_dashboard') }}" class="text-slate-600 hover:text-indigo-600 px-3 py-2 rounded-lg text-sm font-medium transition">
+                                    <i class="fas fa-tachometer-alt mr-1 opacity-80"></i>{{ _('Driver Dashboard') }}
+                                </a>
+                                <a href="{{ url_for('chat.my_chat_page') }}" class="text-slate-600 hover:text-indigo-600 px-3 py-2 rounded-lg text-sm font-medium transition relative">
+                                    <i class="fas fa-comments mr-1 opacity-80"></i>{{ _('My Chat') }}
+                                    <!-- Chat Notification Badge -->
+                                    <span id="driverChatNotificationBadge" class="hidden absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full px-2 py-1">0</span>
+                                </a>
+                            {% elif current_user.role == 'passenger' %}
+                                <a href="{{ url_for('ride.search_rides_page') }}" class="text-slate-600 hover:text-indigo-600 px-3 py-2 rounded-lg text-sm font-medium transition">
+                                    <i class="fas fa-search mr-1 opacity-80"></i>{{ _('Search Rides') }}
+                                </a>
+                                <a href="{{ url_for('booking.my_bookings_page') }}" class="text-slate-600 hover:text-indigo-600 px-3 py-2 rounded-lg text-sm font-medium transition">
+                                    <i class="fas fa-ticket-alt mr-1 opacity-80"></i>{{ _('My Bookings') }}
+                                </a>
+                                <a href="{{ url_for('chat.my_chat_page') }}" class="text-slate-600 hover:text-indigo-600 px-3 py-2 rounded-lg text-sm font-medium transition relative">
+                                    <i class="fas fa-comments mr-1 opacity-80"></i>{{ _('My Chat') }}
+                                    <!-- Chat Notification Badge -->
+                                    <span id="passengerChatNotificationBadge" class="hidden absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full px-2 py-1">0</span>
+                                </a>
+                            {% elif current_user.role == 'admin' %}
+                                <a href="{{ url_for('ride.offer_ride_page') }}" class="text-slate-600 hover:text-indigo-600 px-3 py-2 rounded-lg text-sm font-medium transition">
+                                    <i class="fas fa-plus-circle mr-1 opacity-80"></i>{{ _('Offer Ride') }}
+                                </a>
+                                <a href="{{ url_for('ride.driver_dashboard') }}" class="text-slate-600 hover:text-indigo-600 px-3 py-2 rounded-lg text-sm font-medium transition">
+                                    <i class="fas fa-tachometer-alt mr-1 opacity-80"></i>{{ _('Driver Dashboard') }}
+                                </a>
+                                <a href="{{ url_for('ride.search_rides_page') }}" class="text-slate-600 hover:text-indigo-600 px-3 py-2 rounded-lg text-sm font-medium transition">
+                                    <i class="fas fa-search mr-1 opacity-80"></i>{{ _('Search Rides') }}
+                                </a>
+                                <a href="{{ url_for('booking.my_bookings_page') }}" class="text-slate-600 hover:text-indigo-600 px-3 py-2 rounded-lg text-sm font-medium transition">
+                                    <i class="fas fa-ticket-alt mr-1 opacity-80"></i>{{ _('My Bookings') }}
+                                </a>
+                                <a href="{{ url_for('chat.my_chat_page') }}" class="text-slate-600 hover:text-indigo-600 px-3 py-2 rounded-lg text-sm font-medium transition relative">
+                                    <i class="fas fa-comments mr-1 opacity-80"></i>{{ _('My Chat') }}
+                                    <!-- Chat Notification Badge -->
+                                    <span id="adminChatNotificationBadge" class="hidden absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full px-2 py-1">0</span>
                                 </a>
                             {% endif %}
-                            {% if current_user.role == 'passenger' %}
-                                <a href="{{ url_for('ride.search_rides_page') }}" class="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">
-                                    <i class="fas fa-search"></i> {{ _('Search Rides') }}
-                                </a>
-                            {% endif %}
-                            <a href="{{ url_for('booking.my_bookings_page') }}" class="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">
-                                <i class="fas fa-ticket-alt"></i> {{ _('My Bookings') }}
-                            </a>
-                            <a href="{{ url_for('wallet.wallet_page') }}" class="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">
-                                <i class="fas fa-wallet"></i> {{ _('Wallet') }}
+                            <a href="{{ url_for('wallet.wallet_page') }}" class="text-slate-600 hover:text-indigo-600 px-3 py-2 rounded-lg text-sm font-medium transition">
+                                <i class="fas fa-wallet mr-1 opacity-80"></i>{{ _('Wallet') }}
                             </a>
                             {% if current_user.role == 'admin' %}
-                                <a href="{{ url_for('admin.dashboard') }}" class="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">
-                                    <i class="fas fa-chart-line"></i> {{ _('Admin') }}
+                                <a href="{{ url_for('admin.dashboard') }}" class="text-slate-600 hover:text-indigo-600 px-3 py-2 rounded-lg text-sm font-medium transition">
+                                    <i class="fas fa-chart-line mr-1 opacity-80"></i>{{ _('Admin') }}
                                 </a>
                             {% endif %}
                         </div>
                     {% endif %}
                 </div>
-                <div class="flex items-center space-x-4 rtl:space-x-reverse">
-                    <!-- Language Switcher -->
+                <div class="flex items-center gap-3 rtl:gap-reverse">
+                    {% if current_user.is_authenticated %}
+                    <button id="mobileMenuBtn" type="button" class="md:hidden text-slate-700 p-2 rounded-lg hover:bg-slate-100" onclick="toggleMobileMenu()" aria-label="Menu">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                    {% endif %}
                     <div class="relative">
-                        <button id="langDropdown" class="flex items-center text-gray-700 hover:text-indigo-600 focus:outline-none">
-                            <i class="fas fa-globe mr-1"></i> {{ 'EN' if session.get('lang') != 'ar' else 'AR' }}
+                        <button type="button" id="langDropdown" class="flex items-center gap-1 text-slate-600 hover:text-indigo-600 text-sm font-medium px-2 py-2 rounded-lg hover:bg-slate-50">
+                            <i class="fas fa-globe"></i> {{ 'EN' if session.get('lang') != 'ar' else 'AR' }}
                         </button>
-                        <div id="langMenu" class="absolute right-0 mt-2 w-24 bg-white rounded-md shadow-lg hidden z-20">
-                            <a href="{{ url_for('language.set_language', lang='en') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">English</a>
-                            <a href="{{ url_for('language.set_language', lang='ar') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">العربية</a>
+                        <div id="langMenu" class="absolute right-0 mt-2 w-32 bg-white rounded-xl shadow-lg border border-slate-100 hidden z-30 overflow-hidden">
+                            <a href="{{ url_for('language.set_language', lang='en') }}" class="block px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">English</a>
+                            <a href="{{ url_for('language.set_language', lang='ar') }}" class="block px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">العربية</a>
                         </div>
                     </div>
                     {% if current_user.is_authenticated %}
                         <div class="relative">
-                            <button id="userMenuBtn" class="flex items-center space-x-2 focus:outline-none">
-                                <span class="text-gray-700">{{ current_user.name }}</span>
-                                <i class="fas fa-chevron-down text-gray-500"></i>
+                            <button type="button" id="userMenuBtn" class="flex items-center gap-2 text-sm font-medium text-slate-700 px-3 py-2 rounded-lg hover:bg-slate-50 border border-transparent hover:border-slate-200">
+                                <span class="hidden sm:inline max-w-[10rem] truncate">{{ current_user.name }}</span>
+                                <i class="fas fa-chevron-down text-slate-400 text-xs"></i>
                             </button>
-                            <div id="userMenu" class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg hidden z-20">
-                                <a href="{{ url_for('auth.get_profile') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">{{ _('Profile') }}</a>
-                                <a href="{{ url_for('auth.logout') }}" class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100">{{ _('Logout') }}</a>
+                            <div id="userMenu" class="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-lg border border-slate-100 hidden z-30 overflow-hidden">
+                                <a href="{{ url_for('auth.get_profile') }}" class="block px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">{{ _('Profile') }}</a>
+                                <a href="{{ url_for('auth.logout') }}" class="block px-4 py-2.5 text-sm text-red-600 hover:bg-red-50">{{ _('Logout') }}</a>
                             </div>
                         </div>
                     {% else %}
-                        <a href="{{ url_for('auth.login_page') }}" class="text-indigo-600 hover:text-indigo-800 px-3 py-2">{{ _('Login') }}</a>
-                        <a href="{{ url_for('auth.register_page') }}" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">{{ _('Sign Up') }}</a>
+                        <a href="{{ url_for('auth.login_page') }}" class="text-indigo-600 hover:text-indigo-800 px-3 py-2 text-sm font-medium">{{ _('Login') }}</a>
+                        <a href="{{ url_for('auth.register_page') }}" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow hover:bg-indigo-700 transition">{{ _('Sign Up') }}</a>
                     {% endif %}
                 </div>
             </div>
         </div>
+        {% if current_user.is_authenticated %}
+        <div id="mobileMenu" class="md:hidden hidden border-t border-slate-100 bg-white px-4 py-3 space-y-1">
+            {% if current_user.role in ['driver', 'admin'] %}
+                <a href="{{ url_for('ride.offer_ride_page') }}" class="block text-slate-700 hover:text-indigo-600 py-2 rounded-lg px-2"><i class="fas fa-plus-circle w-6 text-center opacity-70"></i>{{ _('Offer Ride') }}</a>
+                <a href="{{ url_for('ride.driver_dashboard') }}" class="block text-slate-700 hover:text-indigo-600 py-2 rounded-lg px-2"><i class="fas fa-tachometer-alt w-6 text-center opacity-70"></i>{{ _('Driver Dashboard') }}</a>
+            {% endif %}
+            {% if current_user.role in ['passenger', 'admin'] %}
+                <a href="{{ url_for('ride.search_rides_page') }}" class="block text-slate-700 hover:text-indigo-600 py-2 rounded-lg px-2"><i class="fas fa-search w-6 text-center opacity-70"></i>{{ _('Search Rides') }}</a>
+            {% endif %}
+            <a href="{{ url_for('booking.my_bookings_page') }}" class="block text-slate-700 hover:text-indigo-600 py-2 rounded-lg px-2"><i class="fas fa-ticket-alt w-6 text-center opacity-70"></i>{{ _('My Bookings') }}</a>
+            <a href="{{ url_for('wallet.wallet_page') }}" class="block text-slate-700 hover:text-indigo-600 py-2 rounded-lg px-2"><i class="fas fa-wallet w-6 text-center opacity-70"></i>{{ _('Wallet') }}</a>
+            {% if current_user.role == 'admin' %}
+                <a href="{{ url_for('admin.dashboard') }}" class="block text-slate-700 hover:text-indigo-600 py-2 rounded-lg px-2"><i class="fas fa-chart-line w-6 text-center opacity-70"></i>{{ _('Admin') }}</a>
+            {% endif %}
+        </div>
+        {% endif %}
     </nav>
 
-    <!-- Flash Messages -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 w-full">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="mb-4 p-4 rounded-md {{ 'bg-green-100 text-green-800' if category == 'success' else 'bg-red-100 text-red-800' if category == 'danger' else 'bg-yellow-100 text-yellow-800' }}">
+                    <div class="mb-4 p-4 rounded-xl border text-sm font-medium
+                        {{ 'bg-emerald-50 text-emerald-900 border-emerald-100' if category == 'success' else '' }}
+                        {{ 'bg-red-50 text-red-900 border-red-100' if category == 'danger' else '' }}
+                        {{ 'bg-amber-50 text-amber-900 border-amber-100' if category == 'warning' else '' }}
+                        {{ 'bg-slate-50 text-slate-800 border-slate-100' if category not in ['success','danger','warning'] else '' }}">
                         {{ message }}
                     </div>
                 {% endfor %}
@@ -97,46 +235,146 @@
         {% endwith %}
     </div>
 
-    <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
+        {% if request.endpoint != 'home' %}
+        <nav class="flex flex-wrap items-center gap-2 mb-6" aria-label="{{ _('Page navigation') }}">
+            <a href="{{ url_for('home') }}" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-800 transition">
+                <i class="fas fa-home text-indigo-600" aria-hidden="true"></i>
+                {{ _('Main menu') }}
+            </a>
+            <button type="button" id="navHistoryBack" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:border-slate-300 hover:bg-slate-50 transition">
+                <i class="fas fa-arrow-left rtl:rotate-180"></i>
+                {{ _('Back') }}
+            </button>
+        </nav>
+        {% endif %}
         {% block content %}{% endblock %}
     </main>
 
-    <!-- Footer -->
-    <footer class="bg-white border-t mt-12 py-6">
-        <div class="max-w-7xl mx-auto px-4 text-center text-gray-500 text-sm">
-            © 2026 UniRide - {{ _('Safe & Smart Carpooling') }}
+    <footer class="border-t border-slate-200/80 bg-white/80 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 py-8 text-center text-slate-500 text-sm">
+            &copy; 2026 UniRide — {{ _('Safe & Smart Carpooling') }}
         </div>
     </footer>
 
-    <!-- Scripts -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script>
-        // Language dropdown toggle
+        const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        function csrfHeaders(extra) {
+            var h = {'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN};
+            if (extra) Object.assign(h, extra);
+            return h;
+        }
+
+        function unirideShowMapError(message) {
+            try { console.error('[UniRide Maps]', message); } catch (e) {}
+            var id = 'unirideMapsErrorBanner';
+            var existing = document.getElementById(id);
+            if (existing) {
+                existing.querySelector('[data-msg]').textContent = message;
+                existing.classList.remove('hidden');
+                return;
+            }
+            var el = document.createElement('div');
+            el.id = id;
+            el.className = 'fixed left-1/2 -translate-x-1/2 top-4 z-[100] max-w-[min(44rem,calc(100vw-2rem))] w-full hidden';
+            el.innerHTML =
+                '<div class="rounded-xl border border-amber-200 bg-amber-50 text-amber-950 text-sm px-4 py-3 shadow-lg flex items-start gap-3">' +
+                    '<div class="mt-0.5"><i class="fas fa-triangle-exclamation text-amber-700" aria-hidden="true"></i></div>' +
+                    '<div class="flex-1">' +
+                        '<div class="font-semibold">Google Maps failed to load</div>' +
+                        '<div class="text-amber-900 mt-0.5" data-msg></div>' +
+                        '<div class="text-amber-900/90 mt-2 text-xs">' +
+                            'Common causes: billing not enabled, API not enabled (Maps JavaScript/Places), referrer restriction missing (localhost), or invalid key.' +
+                        '</div>' +
+                    '</div>' +
+                    '<button type="button" data-close-maps-banner class="text-amber-900/70 hover:text-amber-950" aria-label="Close">' +
+                        '<i class="fas fa-xmark" aria-hidden="true"></i>' +
+                    '</button>' +
+                '</div>';
+            document.body.appendChild(el);
+            var closeBtn = el.querySelector('[data-close-maps-banner]');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', function() {
+                    el.classList.add('hidden');
+                });
+            }
+            el.querySelector('[data-msg]').textContent = message;
+            el.classList.remove('hidden');
+        }
+
+        window.unirideMapCallbacks = window.unirideMapCallbacks || [];
+        function queueUniRideMap(fn) {
+            if (window.google && window.google.maps) {
+                try { fn(); } catch (e) { console.error(e); }
+            } else {
+                window.unirideMapCallbacks.push(fn);
+            }
+        }
+        function initUniRideMapQueue() {
+            const q = window.unirideMapCallbacks.splice(0);
+            q.forEach(function(fn) {
+                try { fn(); } catch (e) { console.error(e); }
+            });
+        }
+
         const langBtn = document.getElementById('langDropdown');
         const langMenu = document.getElementById('langMenu');
-        if (langBtn) {
-            langBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                langMenu.classList.toggle('hidden');
-            });
-        }
-        // User menu toggle
+        if (langBtn) langBtn.addEventListener('click', function(e) { e.stopPropagation(); langMenu.classList.toggle('hidden'); });
+
         const userBtn = document.getElementById('userMenuBtn');
         const userMenu = document.getElementById('userMenu');
-        if (userBtn) {
-            userBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                userMenu.classList.toggle('hidden');
-            });
-        }
-        // Close dropdowns when clicking outside
-        window.addEventListener('click', () => {
+        if (userBtn) userBtn.addEventListener('click', function(e) { e.stopPropagation(); userMenu.classList.toggle('hidden'); });
+
+        window.addEventListener('click', function() {
             if (langMenu) langMenu.classList.add('hidden');
             if (userMenu) userMenu.classList.add('hidden');
         });
+
+        function toggleMobileMenu() {
+            document.getElementById('mobileMenu').classList.toggle('hidden');
+            document.getElementById('mobileOverlay').classList.toggle('hidden');
+        }
+        function closeMobileMenu() {
+            document.getElementById('mobileMenu').classList.add('hidden');
+            document.getElementById('mobileOverlay').classList.add('hidden');
+        }
+
+        (function() {
+            var btn = document.getElementById('navHistoryBack');
+            if (!btn) return;
+            var homeUrl = {{ url_for('home')|tojson }};
+            btn.addEventListener('click', function() {
+                if (history.length > 1 && document.referrer && document.referrer.indexOf(location.origin) === 0) {
+                    history.back();
+                } else {
+                    window.location.href = homeUrl;
+                }
+            });
+        })();
     </script>
     {% block scripts %}{% endblock %}
+    {% if google_maps_enabled %}
+    <script>
+        // Detect common Google Maps auth/config failures and surface them in-app.
+        window.gm_authFailure = function() {
+            unirideShowMapError('Authentication failed (gm_authFailure). Your API key is invalid, restricted incorrectly, or billing/API enablement is missing.');
+        };
+        (function() {
+            // If the Maps script never loads (blocked, bad key, etc.), show an actionable error.
+            var timeoutMs = 8000;
+            setTimeout(function() {
+                if (!(window.google && window.google.maps)) {
+                    unirideShowMapError('Maps library did not load within ' + Math.round(timeoutMs/1000) + 's. Check Console for details (RefererNotAllowedMapError / ApiNotActivatedMapError / BillingNotEnabledMapError / InvalidKeyMapError).');
+                }
+            }, timeoutMs);
+        })();
+    </script>
+    <script
+        async
+        defer
+        src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=places,geometry&callback=initUniRideMapQueue"
+        onerror="unirideShowMapError('Failed to download Google Maps script. This is usually a network block, invalid key, or key restriction (referrer).')"
+    ></script>
+    {% endif %}
 </body>
 </html>

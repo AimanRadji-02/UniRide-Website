@@ -10,7 +10,7 @@ sos_bp = Blueprint('sos', __name__)
 def alerts_page():
     return render_template('sos_alerts.html')
 
-@sos_bp.route('/api/my-alerts')
+@sos_bp.route('/my-alerts')
 @login_required
 def my_alerts():
     sos_events = SOSEvent.query.filter_by(triggered_by=current_user.user_id).order_by(SOSEvent.triggered_at.desc()).all()
@@ -22,7 +22,7 @@ def my_alerts():
         'status': s.status
     } for s in sos_events])
 
-@sos_bp.route('/api/active-for-ride/<int:ride_id>')
+@sos_bp.route('/active-for-ride/<int:ride_id>')
 @login_required
 def active_for_ride(ride_id):
     active = SOSEvent.query.filter_by(ride_id=ride_id, status='active').first()

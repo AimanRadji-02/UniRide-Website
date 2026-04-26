@@ -11,4 +11,9 @@ class Rating(db.Model):
     comment = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
+    # Relationships
+    ride = db.relationship('Ride', backref='ratings')
+    reviewer = db.relationship('User', foreign_keys=[reviewer_id])
+    reviewee = db.relationship('User', foreign_keys=[reviewee_id])
+    
     __table_args__ = (db.UniqueConstraint('ride_id', 'reviewer_id', 'reviewee_id', name='unique_rating'),)

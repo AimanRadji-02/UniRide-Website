@@ -1,0 +1,906 @@
+{% extends "base_premium.html" %}
+{% block title %}{{ _('Driver Dashboard') }}{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <!-- Header Section -->
+    <div class="text-center mb-12 fade-in">
+        <h1 class="text-4xl md:text-5xl font-bold mb-4">
+            <span class="bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
+                {{ _('Driver Dashboard') }}
+            </span>
+        </h1>
+        <p class="text-xl text-white/70 max-w-2xl mx-auto">
+            {{ _('Manage your rides, connect with passengers, and track your earnings') }}
+        </p>
+    </div>
+
+    <!-- Stats Overview -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="glass-card p-6 text-center hover-scale stagger-item">
+            <div class="w-12 h-12 mx-auto mb-4 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
+                <i class="fas fa-route text-white text-xl"></i>
+            </div>
+            <div class="text-3xl font-bold text-white mb-2" id="totalRides">0</div>
+            <p class="text-white/70">{{ _('Total Rides') }}</p>
+        </div>
+        
+        <div class="glass-card p-6 text-center hover-scale stagger-item">
+            <div class="w-12 h-12 mx-auto mb-4 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center">
+                <i class="fas fa-users text-white text-xl"></i>
+            </div>
+            <div class="text-3xl font-bold text-white mb-2" id="totalPassengers">0</div>
+            <p class="text-white/70">{{ _('Total Passengers') }}</p>
+        </div>
+        
+        <div class="glass-card p-6 text-center hover-scale stagger-item">
+            <div class="w-12 h-12 mx-auto mb-4 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+                <i class="fas fa-dollar-sign text-white text-xl"></i>
+            </div>
+            <div class="text-3xl font-bold text-white mb-2" id="totalEarnings">$0</div>
+            <p class="text-white/70">{{ _('Total Earnings') }}</p>
+        </div>
+        
+        <div class="glass-card p-6 text-center hover-scale stagger-item">
+            <div class="w-12 h-12 mx-auto mb-4 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl flex items-center justify-center">
+                <i class="fas fa-star text-white text-xl"></i>
+            </div>
+            <div class="text-3xl font-bold text-white mb-2">4.8</div>
+            <p class="text-white/70">{{ _('Average Rating') }}</p>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Your Rides Section -->
+        <div class="lg:col-span-2">
+            <div class="glass-card rounded-3xl p-8">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-2xl font-bold text-white flex items-center gap-3">
+                        <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-route text-white"></i>
+                        </div>
+                        {{ _('Your Active Rides') }}
+                    </h2>
+                    <button onclick="refreshRides()" class="btn-secondary group">
+                        <i class="fas fa-sync-alt mr-2 group-hover:rotate-180 transition-transform"></i>
+                        {{ _('Refresh') }}
+                    </button>
+                </div>
+
+                <!-- Loading State -->
+                <div id="ridesLoading" class="text-center py-8">
+                    <div class="loading-spinner mx-auto mb-4"></div>
+                    <p class="text-white/70">{{ _('Loading your rides...') }}</p>
+                </div>
+
+                <!-- Rides List -->
+                <div id="ridesList" class="space-y-4 hidden">
+                    <!-- Ride cards will be dynamically inserted here -->
+                </div>
+
+                <!-- Empty State -->
+                <div id="noRides" class="hidden text-center py-12">
+                    <div class="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-gray-500 to-gray-600 rounded-full flex items-center justify-center">
+                        <i class="fas fa-route text-white text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-4">{{ _('No Active Rides') }}</h3>
+                    <p class="text-white/70 mb-6">
+                        {{ _("You haven't posted any rides yet. Start offering rides to earn money!") }}
+                    </p>
+                    <a href="{{ url_for('ride.offer_ride_page') }}" class="btn-premium">
+                        <i class="fas fa-plus-circle mr-2"></i>
+                        {{ _('Offer Your First Ride') }}
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Passengers & Chat Section -->
+        <div class="lg:col-span-1">
+            <div class="glass-card rounded-3xl p-8">
+                <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-users text-white"></i>
+                    </div>
+                    {{ _('Passengers & Chat') }}
+                </h2>
+
+                <!-- Passengers List -->
+                <div id="passengersSection">
+                    <div class="text-center py-8 text-white/50">
+                        <i class="fas fa-hand-point-left text-4xl mb-4 opacity-50"></i>
+                        <p>{{ _('Select a ride to view passengers') }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="glass-card rounded-3xl p-8 mt-6">
+                <h3 class="text-xl font-bold text-white mb-6">{{ _('Quick Actions') }}</h3>
+                <div class="space-y-3">
+                    <a href="{{ url_for('ride.offer_ride_page') }}" class="btn-premium w-full group">
+                        <i class="fas fa-plus-circle mr-2 group-hover:rotate-12 transition-transform"></i>
+                        {{ _('Offer New Ride') }}
+                    </a>
+                    <a href="{{ url_for('wallet.wallet_page') }}" class="btn-secondary w-full group">
+                        <i class="fas fa-wallet mr-2 group-hover:rotate-12 transition-transform"></i>
+                        {{ _('View Wallet') }}
+                    </a>
+                    <button onclick="exportData()" class="btn-secondary w-full group">
+                        <i class="fas fa-download mr-2 group-hover:rotate-12 transition-transform"></i>
+                        {{ _('Export Data') }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chat Modal -->
+<div id="chatModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="glass-card rounded-3xl max-w-2xl w-full h-[600px] flex flex-col transform scale-95 opacity-0 transition-all" id="chatModalContent">
+        <!-- Chat Header -->
+        <div class="flex items-center justify-between p-6 border-b border-white/20">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold">
+                    <span id="passengerAvatar">P</span>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-white" id="chatTitle">{{ _('Chat with Passenger') }}</h3>
+                    <p class="text-white/60 text-sm" id="chatSubtitle">{{ _('Passenger Name') }}</p>
+                </div>
+            </div>
+            <button onclick="closeChat()" class="text-white/60 hover:text-white transition-colors">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <!-- Chat Messages -->
+        <div id="chatMessages" class="flex-1 overflow-y-auto p-6 space-y-4">
+            <!-- Messages will be dynamically inserted here -->
+        </div>
+
+        <!-- Chat Input -->
+        <div class="p-6 border-t border-white/20">
+            <div class="flex gap-3">
+                <input type="text" id="messageInput" 
+                       placeholder="{{ _('Type a message...') }}" 
+                       class="flex-1 px-4 py-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:border-purple-500 focus:bg-white/20 transition-all">
+                <button onclick="sendMessage()" class="btn-premium px-6 py-3">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ride Details Modal -->
+<div id="rideDetailsModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="glass-card rounded-3xl max-w-2xl w-full p-8 transform scale-95 opacity-0 transition-all" id="rideDetailsModalContent">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-2xl font-bold text-white">{{ _('Ride Details') }}</h3>
+            <button onclick="closeRideDetails()" class="text-white/60 hover:text-white transition-colors">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        
+        <div id="rideDetailsContent">
+            <!-- Ride details will be dynamically inserted here -->
+        </div>
+    </div>
+</div>
+
+<style>
+/* Ride Card Animations */
+.ride-card {
+    animation: slideInUp 0.6s ease forwards;
+    opacity: 0;
+}
+
+.ride-card:nth-child(1) { animation-delay: 0.1s; }
+.ride-card:nth-child(2) { animation-delay: 0.2s; }
+.ride-card:nth-child(3) { animation-delay: 0.3s; }
+.ride-card:nth-child(4) { animation-delay: 0.4s; }
+.ride-card:nth-child(5) { animation-delay: 0.5s; }
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Passenger Card Hover Effects */
+.passenger-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.passenger-card:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 20px 40px rgba(31, 38, 135, 0.3);
+}
+
+/* Status Badge Animations */
+.status-badge {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+/* Chat Message Animations */
+.chat-message {
+    animation: messageSlideIn 0.3s ease;
+}
+
+@keyframes messageSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Refresh Button Animation */
+.refreshing {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentRideId = null;
+let currentPassengerId = null;
+let socket = null;
+let allRides = [];
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    initializeSocket();
+    loadRides();
+    updateStats();
+    
+    // Message input enter key
+    document.getElementById('messageInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+});
+
+// Initialize Socket.IO
+function initializeSocket() {
+    socket = io();
+    
+    socket.on('new_message', (data) => {
+        if (data.sender_id === currentPassengerId || data.receiver_id === currentPassengerId) {
+            loadMessages(currentPassengerId);
+        }
+    });
+}
+
+// Load rides
+async function loadRides() {
+    const ridesLoading = document.getElementById('ridesLoading');
+    const ridesList = document.getElementById('ridesList');
+    const noRides = document.getElementById('noRides');
+    
+    ridesLoading.classList.remove('hidden');
+    ridesList.classList.add('hidden');
+    noRides.classList.add('hidden');
+
+    try {
+        const response = await fetch('/api/rides/driver_rides');
+        const rides = await response.json();
+        
+        allRides = rides;
+        displayRides(rides);
+        updateStats();
+        
+        ridesLoading.classList.add('hidden');
+        
+        if (rides.length === 0) {
+            noRides.classList.remove('hidden');
+        } else {
+            ridesList.classList.remove('hidden');
+        }
+    } catch (error) {
+        console.error('Error loading rides:', error);
+        ridesLoading.classList.add('hidden');
+        showError('{{ _("Failed to load rides. Please try again.") }}');
+    }
+}
+
+// Display rides
+function displayRides(rides) {
+    const ridesList = document.getElementById('ridesList');
+    
+    ridesList.innerHTML = rides.map((ride, index) => `
+        <div class="ride-card glass-card p-6 hover-lift" style="animation-delay: ${index * 0.1}s" onclick="selectRide(${ride.ride_id})">
+            <!-- Ride Header -->
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold">
+                        <i class="fas fa-route"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-white font-semibold">${ride.origin} → ${ride.destination}</h4>
+                        <div class="flex items-center gap-2 text-white/60 text-sm">
+                            <i class="fas fa-calendar"></i>
+                            <span>${formatDate(ride.departure_datetime)}</span>
+                            <i class="fas fa-clock ml-2"></i>
+                            <span>${formatTime(ride.departure_datetime)}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <span class="status-badge px-3 py-1 rounded-full text-xs font-medium ${getStatusClass(ride.status)}">
+                        ${getStatusText(ride.status)}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Ride Details -->
+            <div class="grid grid-cols-3 gap-4 mb-4">
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-white">${ride.available_seats}</div>
+                    <div class="text-white/60 text-sm">{{ _('Seats') }}</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-green-400">$${ride.price_per_seat}</div>
+                    <div class="text-white/60 text-sm">{{ _('Per Seat') }}</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-blue-400" id="passengerCount-${ride.ride_id}">-</div>
+                    <div class="text-white/60 text-sm">{{ _('Passengers') }}</div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-3">
+                <button onclick="event.stopPropagation(); showRideDetails(${ride.ride_id})" class="btn-secondary flex-1 group">
+                    <i class="fas fa-info-circle mr-2 group-hover:rotate-12 transition-transform"></i>
+                    {{ _('Details') }}
+                </button>
+                ${ride.status === 'active' ? `
+                    <button onclick="event.stopPropagation(); completeRide(${ride.ride_id})" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl font-semibold transition-colors flex-1">
+                        <i class="fas fa-check mr-2"></i>
+                        {{ _('Complete') }}
+                    </button>
+                    <button onclick="event.stopPropagation(); cancelRide(${ride.ride_id})" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl font-semibold transition-colors flex-1">
+                        <i class="fas fa-times mr-2"></i>
+                        {{ _('Cancel') }}
+                    </button>
+                ` : ''}
+            </div>
+        </div>
+    `).join('');
+
+    // Load passenger counts for each ride
+    rides.forEach(ride => {
+        loadPassengerCount(ride.ride_id);
+    });
+}
+
+// Load passenger count for a ride
+async function loadPassengerCount(rideId) {
+    try {
+        const response = await fetch(`/api/rides/${rideId}/passengers`);
+        const passengers = await response.json();
+        const countElement = document.getElementById(`passengerCount-${rideId}`);
+        if (countElement) {
+            countElement.textContent = passengers.length;
+        }
+    } catch (error) {
+        console.error('Error loading passenger count:', error);
+    }
+}
+
+// Update stats
+function updateStats() {
+    // Calculate stats from rides
+    const totalRides = allRides.length;
+    const activeRides = allRides.filter(r => r.status === 'active');
+    const completedRides = allRides.filter(r => r.status === 'completed');
+    
+    // Update DOM
+    document.getElementById('totalRides').textContent = totalRides;
+    
+    // Calculate total passengers and earnings (mock data for now)
+    let totalPassengers = 0;
+    let totalEarnings = 0;
+    
+    completedRides.forEach(ride => {
+        // Mock calculations - in real app, this would come from backend
+        const passengers = Math.floor(Math.random() * ride.available_seats) + 1;
+        totalPassengers += passengers;
+        totalEarnings += passengers * ride.price_per_seat;
+    });
+    
+    document.getElementById('totalPassengers').textContent = totalPassengers;
+    document.getElementById('totalEarnings').textContent = `$${totalEarnings.toFixed(2)}`;
+}
+
+// Select a ride
+async function selectRide(rideId) {
+    currentRideId = rideId;
+    
+    // Update visual selection
+    document.querySelectorAll('.ride-card').forEach(card => {
+        card.classList.remove('border-2', 'border-purple-500', 'bg-purple-500/10');
+    });
+    
+    event.currentTarget.classList.add('border-2', 'border-purple-500', 'bg-purple-500/10');
+    
+    // Load passengers for this ride
+    await loadPassengers(rideId);
+}
+
+// Load passengers for a ride
+async function loadPassengers(rideId) {
+    const passengersSection = document.getElementById('passengersSection');
+    
+    try {
+        const response = await fetch(`/api/rides/${rideId}/passengers`);
+        const passengers = await response.json();
+        
+        if (passengers.length === 0) {
+            passengersSection.innerHTML = `
+                <div class="text-center py-8 text-white/50">
+                    <i class="fas fa-users text-4xl mb-4 opacity-50"></i>
+                    <p>{{ _('No passengers booked for this ride.') }}</p>
+                </div>
+            `;
+            return;
+        }
+        
+        passengersSection.innerHTML = `
+            <div class="space-y-3">
+                ${passengers.map(passenger => `
+                    <div class="passenger-card glass-card p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
+                                    ${passenger.name.charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                    <div class="font-semibold text-white">${passenger.name}</div>
+                                    <div class="text-white/60 text-sm">${passenger.phone}</div>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <span class="px-2 py-1 rounded-full text-xs font-medium ${passenger.booking_status === 'confirmed' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}">
+                                    ${passenger.booking_status}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <div class="text-white/60 text-sm">
+                                <i class="fas fa-users mr-1"></i>
+                                ${passenger.seats_requested} {{ _('seat(s)') }}
+                            </div>
+                            <button onclick="openChat(${passenger.passenger_id}, '${passenger.name}')" 
+                                    class="btn-premium px-4 py-2 text-sm group">
+                                <i class="fas fa-comment mr-2 group-hover:rotate-12 transition-transform"></i>
+                                {{ _('Chat') }}
+                            </button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error loading passengers:', error);
+        passengersSection.innerHTML = `
+            <div class="text-center py-8 text-red-400">
+                <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
+                <p>{{ _('Failed to load passengers.') }}</p>
+            </div>
+        `;
+    }
+}
+
+// Get status class
+function getStatusClass(status) {
+    switch(status) {
+        case 'active':
+            return 'bg-green-500/20 text-green-400';
+        case 'completed':
+            return 'bg-blue-500/20 text-blue-400';
+        case 'cancelled':
+            return 'bg-red-500/20 text-red-400';
+        default:
+            return 'bg-gray-500/20 text-gray-400';
+    }
+}
+
+// Get status text
+function getStatusText(status) {
+    switch(status) {
+        case 'active':
+            return '{{ _("Active") }}';
+        case 'completed':
+            return '{{ _("Completed") }}';
+        case 'cancelled':
+            return '{{ _("Cancelled") }}';
+        default:
+            return status;
+    }
+}
+
+// Format date
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+        weekday: 'short', 
+        month: 'short', 
+        day: 'numeric' 
+    });
+}
+
+// Format time
+function formatTime(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+    });
+}
+
+// Open chat modal
+function openChat(passengerId, passengerName) {
+    currentPassengerId = passengerId;
+    
+    const modal = document.getElementById('chatModal');
+    const modalContent = document.getElementById('chatModalContent');
+    
+    // Update chat header
+    document.getElementById('passengerAvatar').textContent = passengerName.charAt(0).toUpperCase();
+    document.getElementById('chatTitle').textContent = `{{ _('Chat with') }} ${passengerName}`;
+    document.getElementById('chatSubtitle').textContent = passengerName;
+    
+    // Show modal with animation
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+        modalContent.classList.remove('scale-95', 'opacity-0');
+        modalContent.classList.add('scale-100', 'opacity-100');
+    }, 10);
+    
+    // Join private chat room
+    if (socket) {
+        socket.emit('join_private_chat', { other_user_id: passengerId });
+    }
+    
+    // Load messages
+    loadMessages(passengerId);
+}
+
+// Close chat modal
+function closeChat() {
+    const modal = document.getElementById('chatModal');
+    const modalContent = document.getElementById('chatModalContent');
+    
+    modalContent.classList.remove('scale-100', 'opacity-100');
+    modalContent.classList.add('scale-95', 'opacity-0');
+    
+    setTimeout(() => {
+        modal.classList.add('hidden');
+        currentPassengerId = null;
+        document.getElementById('chatMessages').innerHTML = '';
+        document.getElementById('messageInput').value = '';
+    }, 300);
+}
+
+// Load messages
+async function loadMessages(passengerId) {
+    try {
+        const response = await fetch(`/api/messages/conversation/${passengerId}`);
+        const messages = await response.json();
+        
+        const messagesContainer = document.getElementById('chatMessages');
+        messagesContainer.innerHTML = messages.map(msg => `
+            <div class="chat-message ${msg.sender_id === passengerId ? 'justify-start' : 'justify-end'} flex">
+                <div class="max-w-xs px-4 py-3 rounded-2xl ${
+                    msg.sender_id === passengerId 
+                        ? 'bg-white/10 backdrop-blur-md text-white' 
+                        : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+                }">
+                    <div class="text-sm">${msg.content}</div>
+                    <div class="text-xs mt-1 ${
+                        msg.sender_id === passengerId ? 'text-white/60' : 'text-purple-200'
+                    }">
+                        ${new Date(msg.sent_at).toLocaleTimeString()}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        
+        // Scroll to bottom
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    } catch (error) {
+        console.error('Error loading messages:', error);
+    }
+}
+
+// Send message
+async function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const content = input.value.trim();
+    
+    if (!content || !currentPassengerId || !currentRideId) return;
+    
+    // Use Socket.IO for real-time messaging
+    if (socket) {
+        socket.emit('send_private_message', {
+            receiver_id: currentPassengerId,
+            ride_id: currentRideId,
+            content: content
+        });
+        input.value = '';
+    } else {
+        // Fallback to HTTP
+        try {
+            const response = await fetch('/api/messages/send', {
+                method: 'POST',
+                headers: csrfHeaders(),
+                body: JSON.stringify({
+                    receiver_id: currentPassengerId,
+                    ride_id: currentRideId,
+                    content: content
+                })
+            });
+            
+            if (response.ok) {
+                input.value = '';
+                loadMessages(currentPassengerId);
+            } else {
+                const err = await response.json();
+                showError(err.error || '{{ _("Failed to send message") }}');
+            }
+        } catch (error) {
+            console.error('Error sending message:', error);
+            showError('{{ _("Failed to send message") }}');
+        }
+    }
+}
+
+// Show ride details
+async function showRideDetails(rideId) {
+    const ride = allRides.find(r => r.ride_id === rideId);
+    if (!ride) return;
+    
+    const modal = document.getElementById('rideDetailsModal');
+    const modalContent = document.getElementById('rideDetailsModalContent');
+    const detailsContent = document.getElementById('rideDetailsContent');
+    
+    // Load passengers for details
+    let passengersHtml = '';
+    try {
+        const response = await fetch(`/api/rides/${rideId}/passengers`);
+        const passengers = await response.json();
+        
+        passengersHtml = `
+            <div class="mb-6">
+                <h4 class="text-lg font-semibold text-white mb-3">{{ _('Booked Passengers') }}</h4>
+                ${passengers.length === 0 ? 
+                    '<p class="text-white/60">{{ _('No passengers booked yet.') }}</p>' :
+                    passengers.map(p => `
+                        <div class="flex items-center justify-between py-2 border-b border-white/10">
+                            <div>
+                                <div class="text-white font-medium">${p.name}</div>
+                                <div class="text-white/60 text-sm">${p.phone} • ${p.seats_requested} seats</div>
+                            </div>
+                            <span class="px-2 py-1 rounded-full text-xs font-medium ${p.booking_status === 'confirmed' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}">
+                                ${p.booking_status}
+                            </span>
+                        </div>
+                    `).join('')
+                }
+            </div>
+        `;
+    } catch (error) {
+        passengersHtml = '<p class="text-white/60">{{ _('Failed to load passenger information.') }}</p>';
+    }
+    
+    detailsContent.innerHTML = `
+        <div class="space-y-6">
+            <div>
+                <h4 class="text-lg font-semibold text-white mb-3">{{ _('Route Information') }}</h4>
+                <div class="space-y-2">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-map-marker-alt text-purple-400 w-5"></i>
+                        <span class="text-white">${ride.origin}</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-flag-checkered text-purple-400 w-5"></i>
+                        <span class="text-white">${ride.destination}</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-calendar text-purple-400 w-5"></i>
+                        <span class="text-white">${formatDate(ride.departure_datetime)} at ${formatTime(ride.departure_datetime)}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div>
+                <h4 class="text-lg font-semibold text-white mb-3">{{ _('Ride Details') }}</h4>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <div class="text-2xl font-bold text-white">${ride.available_seats}</div>
+                        <div class="text-white/60 text-sm">{{ _('Available Seats') }}</div>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-bold text-green-400">$${ride.price_per_seat}</div>
+                        <div class="text-white/60 text-sm">{{ _('Price per Seat') }}</div>
+                    </div>
+                </div>
+            </div>
+            
+            ${passengersHtml}
+            
+            <div class="flex gap-3 pt-4 border-t border-white/20">
+                ${ride.status === 'active' ? `
+                    <button onclick="closeRideDetails(); completeRide(${ride.ride_id})" class="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-xl font-semibold transition-colors flex-1">
+                        <i class="fas fa-check mr-2"></i>
+                        {{ _('Complete Ride') }}
+                    </button>
+                    <button onclick="closeRideDetails(); cancelRide(${ride.ride_id})" class="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl font-semibold transition-colors flex-1">
+                        <i class="fas fa-times mr-2"></i>
+                        {{ _('Cancel Ride') }}
+                    </button>
+                ` : ''}
+                <button onclick="closeRideDetails()" class="btn-secondary flex-1">
+                    {{ _('Close') }}
+                </button>
+            </div>
+        </div>
+    `;
+    
+    // Show modal with animation
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+        modalContent.classList.remove('scale-95', 'opacity-0');
+        modalContent.classList.add('scale-100', 'opacity-100');
+    }, 10);
+}
+
+// Close ride details modal
+function closeRideDetails() {
+    const modal = document.getElementById('rideDetailsModal');
+    const modalContent = document.getElementById('rideDetailsModalContent');
+    
+    modalContent.classList.remove('scale-100', 'opacity-100');
+    modalContent.classList.add('scale-95', 'opacity-0');
+    
+    setTimeout(() => {
+        modal.classList.add('hidden');
+    }, 300);
+}
+
+// Complete ride
+async function completeRide(rideId) {
+    if (!confirm('{{ _("Are you sure you want to mark this ride as completed?") }}')) return;
+    
+    try {
+        const response = await fetch(`/api/rides/${rideId}/complete`, {
+            method: 'POST',
+            headers: csrfHeaders()
+        });
+        
+        if (response.ok) {
+            showSuccess('{{ _('Ride marked as completed successfully!') }}');
+            loadRides(); // Refresh rides
+        } else {
+            const err = await response.json();
+            showError(err.error || '{{ _("Failed to complete ride.") }}');
+        }
+    } catch (error) {
+        console.error('Error completing ride:', error);
+        showError('{{ _("Failed to complete ride.") }}');
+    }
+}
+
+// Cancel ride
+async function cancelRide(rideId) {
+    if (!confirm('{{ _("Are you sure you want to cancel this ride?") }}')) return;
+    
+    try {
+        const response = await fetch(`/api/rides/${rideId}/cancel`, {
+            method: 'POST',
+            headers: csrfHeaders()
+        });
+        
+        if (response.ok) {
+            showSuccess('{{ _('Ride cancelled successfully!') }}');
+            loadRides(); // Refresh rides
+        } else {
+            const err = await response.json();
+            showError(err.error || '{{ _("Failed to cancel ride.") }}');
+        }
+    } catch (error) {
+        console.error('Error cancelling ride:', error);
+        showError('{{ _("Failed to cancel ride.") }}');
+    }
+}
+
+// Refresh rides
+function refreshRides() {
+    const refreshBtn = event.currentTarget;
+    const icon = refreshBtn.querySelector('i');
+    
+    icon.classList.add('refreshing');
+    loadRides();
+    
+    setTimeout(() => {
+        icon.classList.remove('refreshing');
+    }, 1000);
+}
+
+// Export data
+function exportData() {
+    // Mock export functionality
+    const data = {
+        rides: allRides,
+        exportDate: new Date().toISOString(),
+        driverName: '{{ current_user.name }}'
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `uniride-data-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    showSuccess('{{ _('Data exported successfully!') }}');
+}
+
+// Show success message
+function showSuccess(message) {
+    const successDiv = document.createElement('div');
+    successDiv.className = 'fixed top-4 right-4 z-50 success-message fade-in';
+    successDiv.innerHTML = `
+        <div class="flex items-center gap-3">
+            <i class="fas fa-check-circle"></i>
+            <span>${message}</span>
+        </div>
+    `;
+    document.body.appendChild(successDiv);
+    setTimeout(() => successDiv.remove(), 5000);
+}
+
+// Show error message
+function showError(message) {
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'fixed top-4 right-4 z-50 error-message fade-in';
+    errorDiv.innerHTML = `
+        <div class="flex items-center gap-3">
+            <i class="fas fa-exclamation-circle"></i>
+            <span>${message}</span>
+        </div>
+    `;
+    document.body.appendChild(errorDiv);
+    setTimeout(() => errorDiv.remove(), 5000);
+}
+</script>
+{% endblock %}

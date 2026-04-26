@@ -1,47 +1,240 @@
 {% extends "base.html" %}
-{% block title %}Admin Dashboard{% endblock %}
+{% block title %}{{ _('Admin Dashboard') }}{% endblock %}
 {% block content %}
-<div class="container mx-auto">
-    <h1 class="text-2xl font-bold mb-6">Admin Dashboard (FR-12)</h1>
+<div class="space-y-6">
+    <h1 class="text-2xl font-bold">{{ _('Admin Dashboard') }}</h1>
+
+    <!-- Stats cards -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4" id="stats-cards">
+        <div class="bg-white rounded-xl shadow p-4 text-center">
+            <div class="text-3xl font-bold text-indigo-600" id="stat-users">-</div>
+            <div class="text-sm text-gray-500">{{ _('Users') }}</div>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 text-center">
+            <div class="text-3xl font-bold text-green-600" id="stat-rides">-</div>
+            <div class="text-sm text-gray-500">{{ _('Total Rides') }}</div>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 text-center">
+            <div class="text-3xl font-bold text-blue-600" id="stat-active">-</div>
+            <div class="text-sm text-gray-500">{{ _('Active Rides') }}</div>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 text-center">
+            <div class="text-3xl font-bold text-purple-600" id="stat-bookings">-</div>
+            <div class="text-sm text-gray-500">{{ _('Bookings') }}</div>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 text-center">
+            <div class="text-3xl font-bold text-red-600" id="stat-sos">-</div>
+            <div class="text-sm text-gray-500">{{ _('Active SOS') }}</div>
+        </div>
+    </div>
+
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Users -->
         <div class="bg-white rounded-xl shadow p-4">
-            <h2 class="text-xl font-semibold mb-3">Users</h2>
+            <h2 class="text-xl font-semibold mb-3"><i class="fas fa-users text-indigo-600"></i> {{ _('Users') }}</h2>
             <div id="users-list" class="space-y-2 max-h-96 overflow-y-auto"></div>
         </div>
+        <!-- Active SOS -->
         <div class="bg-white rounded-xl shadow p-4">
-            <h2 class="text-xl font-semibold mb-3">Active SOS Alerts</h2>
+            <h2 class="text-xl font-semibold mb-3"><i class="fas fa-exclamation-triangle text-red-600"></i> {{ _('Active SOS Alerts') }}</h2>
             <div id="sos-list" class="space-y-2 max-h-96 overflow-y-auto"></div>
         </div>
     </div>
+
+    <!-- All Rides Management -->
+    <div class="bg-white rounded-xl shadow p-4">
+        <div class="flex justify-between items-center mb-3">
+            <h2 class="text-xl font-semibold"><i class="fas fa-car text-green-600"></i> {{ _('Ride Management') }}</h2>
+            <button onclick="loadRides()" class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">
+                <i class="fas fa-sync-alt"></i> {{ _('Refresh') }}
+            </button>
+        </div>
+        
+        <!-- Filter tabs -->
+        <div class="flex gap-2 mb-3">
+            <button onclick="filterRides('all')" class="filter-btn px-3 py-1 rounded text-sm bg-gray-100 hover:bg-gray-200" data-filter="all">{{ _('All') }}</button>
+            <button onclick="filterRides('active')" class="filter-btn px-3 py-1 rounded text-sm bg-gray-100 hover:bg-gray-200" data-filter="active">{{ _('Active') }}</button>
+            <button onclick="filterRides('cancelled')" class="filter-btn px-3 py-1 rounded text-sm bg-gray-100 hover:bg-gray-200" data-filter="cancelled">{{ _('Cancelled') }}</button>
+            <button onclick="filterRides('completed')" class="filter-btn px-3 py-1 rounded text-sm bg-gray-100 hover:bg-gray-200" data-filter="completed">{{ _('Completed') }}</button>
+        </div>
+        
+        <div id="rides-list" class="space-y-2 max-h-96 overflow-y-auto"></div>
+    </div>
 </div>
+
 <script>
+    async function loadStats() {
+        try {
+            const res = await fetch('/admin/api/stats');
+            const s = await res.json();
+            document.getElementById('stat-users').innerText = s.total_users;
+            document.getElementById('stat-rides').innerText = s.total_rides;
+            document.getElementById('stat-active').innerText = s.active_rides;
+            document.getElementById('stat-bookings').innerText = s.total_bookings;
+            document.getElementById('stat-sos').innerText = s.active_sos;
+        } catch(e) { console.error(e); }
+    }
+
     async function loadUsers() {
         const res = await fetch('/admin/api/users');
         const users = await res.json();
         document.getElementById('users-list').innerHTML = users.map(u => `
-            <div class="border-b pb-1">${u.name} (${u.role}) - ${u.email}</div>
+            <div class="flex justify-between items-center border-b pb-2">
+                <div>
+                    <div class="font-medium">${u.name}</div>
+                    <div class="text-sm text-gray-500">${u.email} &middot; ${u.phone}</div>
+                </div>
+                <span class="px-2 py-1 rounded text-xs font-semibold ${u.role === 'admin' ? 'bg-red-100 text-red-800' : u.role === 'driver' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}">${u.role}</span>
+            </div>
         `).join('');
     }
+
     async function loadSOS() {
         const res = await fetch('/admin/api/sos-alerts');
         const alerts = await res.json();
         const container = document.getElementById('sos-list');
         if (alerts.length === 0) {
-            container.innerHTML = '<p class="text-gray-500">No active SOS</p>';
+            container.innerHTML = '<p class="text-gray-500">{{ _("No active SOS alerts") }}</p>';
             return;
         }
         container.innerHTML = alerts.map(s => `
-            <div class="bg-red-50 p-2 rounded">
-                <div>Ride ${s.ride_id} - ${s.triggered_by}</div>
-                <div>Location: ${s.gps_location}</div>
-                <button onclick="resolveSOS(${s.sos_id})" class="bg-green-600 text-white px-2 py-1 rounded text-sm">Resolve</button>
+            <div class="bg-red-50 p-3 rounded-lg">
+                <div class="font-medium">Ride #${s.ride_id} - User #${s.triggered_by}</div>
+                <div class="text-sm">Location: ${s.gps_location}</div>
+                <div class="text-xs text-gray-500">${new Date(s.triggered_at).toLocaleString()}</div>
+                <button onclick="resolveSOS(${s.sos_id})" class="mt-2 bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"><i class="fas fa-check"></i> {{ _('Resolve') }}</button>
             </div>
         `).join('');
     }
-    async function resolveSOS(id) {
-        await fetch(`/admin/api/resolve-sos/${id}`, {method: 'POST'});
-        loadSOS();
+
+    let allRides = [];
+let currentFilter = 'all';
+
+    async function loadRides() {
+        try {
+            const res = await fetch('/admin/api/rides');
+            allRides = await res.json();
+            displayRides(currentFilter);
+        } catch(e) { 
+            console.error(e); 
+            document.getElementById('rides-list').innerHTML = '<p class="text-gray-500">{{ _("Failed to load rides") }}</p>';
+        }
     }
-    loadUsers(); loadSOS();
+
+    function filterRides(filter) {
+        currentFilter = filter;
+        
+        // Update active filter button
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.classList.remove('bg-blue-600', 'text-white');
+            btn.classList.add('bg-gray-100');
+            if (btn.dataset.filter === filter) {
+                btn.classList.remove('bg-gray-100');
+                btn.classList.add('bg-blue-600', 'text-white');
+            }
+        });
+        
+        displayRides(filter);
+    }
+
+    function displayRides(filter) {
+        const container = document.getElementById('rides-list');
+        let filteredRides = allRides;
+
+        // Apply filter
+        switch(filter) {
+            case 'active':
+                filteredRides = allRides.filter(r => r.status === 'active');
+                break;
+            case 'cancelled':
+                filteredRides = allRides.filter(r => r.status === 'cancelled');
+                break;
+            case 'completed':
+                filteredRides = allRides.filter(r => r.status === 'completed');
+                break;
+        }
+
+        if (filteredRides.length === 0) {
+            container.innerHTML = `<p class="text-gray-500">{{ _("No rides found for filter: ") }} ${filter}</p>`;
+            return;
+        }
+
+        container.innerHTML = filteredRides.map(r => `
+            <div class="border rounded-lg p-3 ${r.status === 'cancelled' ? 'bg-red-50 border-red-200' : r.status === 'completed' ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}">
+                <div class="flex justify-between items-start">
+                    <div class="flex-1">
+                        <div class="font-medium text-sm">${r.origin} &rarr; ${r.destination}</div>
+                        <div class="text-xs text-gray-500 mt-1">
+                            <div><strong>{{ _('Driver') }}:</strong> ${r.driver_name} (${r.driver_email})</div>
+                            <div><strong>{{ _('Departure') }}:</strong> ${new Date(r.departure_datetime).toLocaleString()}</div>
+                            <div><strong>{{ _('Seats') }}:</strong> ${r.available_seats} | <strong>{{ _('Price') }}:</strong> $${r.price_per_seat}</div>
+                            <div><strong>{{ _('Bookings') }}:</strong> ${r.confirmed_bookings_count} confirmed, ${r.pending_bookings_count} pending</div>
+                            ${r.cancellation_reason ? `
+                                <div class="text-red-600 text-xs mt-1">
+                                    <strong>{{ _('Cancelled') }}:</strong> ${r.cancellation_reason}
+                                    ${r.cancelled_by_admin_name ? ` by ${r.cancelled_by_admin_name}` : ''}
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    <div class="flex flex-col gap-2 ml-4">
+                        <span class="px-2 py-1 rounded text-xs font-semibold ${getStatusClass(r.status)}">${r.status}</span>
+                        ${r.status === 'active' ? `
+                            <button onclick="cancelRide(${r.ride_id})" class="bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700">
+                                <i class="fas fa-ban"></i> {{ _('Cancel') }}
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function getStatusClass(status) {
+        switch(status) {
+            case 'active': return 'bg-green-100 text-green-800';
+            case 'cancelled': return 'bg-red-100 text-red-800';
+            case 'completed': return 'bg-blue-100 text-blue-800';
+            default: return 'bg-gray-100 text-gray-800';
+        }
+    }
+
+    async function cancelRide(rideId) {
+        const reason = prompt('{{ _("Please provide a reason for cancelling this ride (e.g., inappropriate use, safety concerns):") }}');
+        if (!reason) return;
+
+        if (!confirm(`{{ _('Are you sure you want to cancel this ride? This will affect') }} ${allRides.find(r => r.ride_id === rideId).confirmed_bookings_count} {{ _('confirmed passengers.') }}`)) {
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/rides/${rideId}/admin-cancel`, {
+                method: 'POST',
+                headers: csrfHeaders(),
+                body: JSON.stringify({ reason: reason })
+            });
+
+            if (res.ok) {
+                const result = await res.json();
+                alert(`{{ _('Ride cancelled successfully!') }}\n${result.message}`);
+                loadRides();
+                loadStats();
+            } else {
+                const error = await res.json();
+                alert(`{{ _('Failed to cancel ride:') }} ${error.error}`);
+            }
+        } catch(e) {
+            console.error(e);
+            alert('{{ _('Failed to cancel ride. Please try again.') }}');
+        }
+    }
+
+    async function resolveSOS(id) {
+        await fetch(`/admin/api/resolve-sos/${id}`, {method: 'POST', headers: csrfHeaders()});
+        loadSOS();
+        loadStats();
+    }
+
+    loadStats(); loadUsers(); loadSOS(); loadRides();
 </script>
 {% endblock %}

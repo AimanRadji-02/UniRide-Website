@@ -1,0 +1,412 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Driver Dashboard') }}{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold mb-6">{{ _('Driver Dashboard') }}</h1>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Your Rides -->
+    <div class="bg-white rounded-xl shadow p-6">
+        <h2 class="text-xl font-semibold mb-4">{{ _('Your Active Rides') }}</h2>
+        <div id="rides-list" class="space-y-4">
+            <div class="text-center py-8">{{ _('Loading...') }}</div>
+        </div>
+    </div>
+
+    <!-- My Ratings -->
+    <div class="bg-white rounded-xl shadow p-6">
+        <h2 class="text-xl font-semibold mb-4">{{ _('My Ratings') }}</h2>
+        <div id="ratings-section">
+            <div class="text-center py-8 text-gray-500">{{ _('Loading ratings...') }}</div>
+        </div>
+    </div>
+
+    <!-- Passengers & Chat -->
+    <div class="bg-white rounded-xl shadow p-6">
+        <h2 class="text-xl font-semibold mb-4">{{ _('Passengers & Chat') }}</h2>
+        <div id="passengers-section">
+            <div class="text-center py-8 text-gray-500">{{ _('Select a ride to view passengers') }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Chat Modal -->
+<div id="chatModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+    <div class="flex items-center justify-center h-full">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
+            <div class="border-b px-6 py-4 flex justify-between items-center">
+                <h3 id="chatTitle" class="font-semibold">{{ _('Chat with Passenger') }}</h3>
+                <button onclick="closeChat()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="chatMessages" class="h-96 overflow-y-auto p-4 space-y-2">
+                <!-- Messages will appear here -->
+            </div>
+            <div class="border-t p-4">
+                <div class="flex gap-2">
+                    <input type="text" id="messageInput" placeholder="{{ _('Type a message...') }}" 
+                           class="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button onclick="sendMessage()" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentRideId = null;
+    let currentPassengerId = null;
+    let socket = null;
+
+    // Initialize Socket.IO
+    function initializeSocket() {
+        socket = io();
+        
+        socket.on('new_message', (data) => {
+            // Always show notification for new messages
+            showChatNotification(data);
+            
+            // If chat is open with this person, load messages
+            if (currentPassengerId && (data.sender_id === currentPassengerId || data.receiver_id === currentPassengerId)) {
+                loadMessages(currentPassengerId);
+            }
+        });
+        
+        // Show chat notification
+        function showChatNotification(data) {
+            // Don't show notification for own messages
+            const currentUserId = {{ current_user.user_id }};
+            if (data.sender_id === currentUserId) {
+                return;
+            }
+            
+            // Use menu badge notification
+            if (typeof showNotificationBadge === 'function') {
+                const senderName = data.sender_name || 'Someone';
+                const message = data.content.substring(0, 50) + (data.content.length > 50 ? '...' : '');
+                showNotificationBadge(`New message from ${senderName}: ${message}`);
+            }
+            
+            // Also show browser notification if permitted
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification('New Message', {
+                    body: data.content,
+                    icon: '/static/images/chat-icon.png'
+                });
+            }
+        }
+    }
+
+    // Load driver's rides
+    async function loadRides() {
+        try {
+            const res = await fetch('/api/rides/driver_rides');
+            const rides = await res.json();
+            const container = document.getElementById('rides-list');
+            
+            if (rides.length === 0) {
+                container.innerHTML = '<div class="text-center text-gray-500">{{ _("No active rides found.") }}</div>';
+                return;
+            }
+            
+            container.innerHTML = rides.map(ride => `
+                <div class="border rounded-lg p-4 hover:bg-gray-50 ${currentRideId === ride.ride_id ? 'border-blue-500 bg-blue-50' : ''}"
+                     onclick="selectRide(${ride.ride_id})">
+                    <div class="font-bold">${ride.origin} &rarr; ${ride.destination}</div>
+                    <div class="text-sm text-gray-600">
+                        <i class="far fa-calendar-alt"></i> ${new Date(ride.departure_datetime).toLocaleString()}
+                    </div>
+                    <div class="text-sm mt-1">
+                        <span class="text-gray-600">${ride.available_seats} seats available</span>
+                        <span class="ml-2 text-gray-600">$${ride.price_per_seat}/seat</span>
+                    </div>
+                    <div class="mt-2 flex items-center justify-between">
+                        <span class="inline-block px-2 py-1 rounded text-xs font-semibold 
+                            ${ride.status === 'scheduled' ? 'bg-blue-100 text-blue-800' : 
+                              ride.status === 'ongoing' ? 'bg-yellow-100 text-yellow-800' :
+                              ride.status === 'completed' ? 'bg-gray-100 text-gray-800' : 
+                              'bg-red-100 text-red-800'}">
+                            ${ride.status}
+                        </span>
+                        ${(ride.status === 'scheduled' || ride.status === 'ongoing') ? `
+                            <button onclick="event.stopPropagation(); markAsCompleted(${ride.ride_id})" 
+                                    class="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700">
+                                <i class="fas fa-check"></i> {{ _('Mark as Completed') }}
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `).join('');
+        } catch (error) {
+            console.error('Error loading rides:', error);
+        }
+    }
+
+    // Select a ride and load its passengers
+    async function selectRide(rideId) {
+        currentRideId = rideId;
+        loadRides(); // Refresh to show selected state
+        loadPassengers(rideId);
+    }
+
+    // Load passengers for a specific ride
+    async function loadPassengers(rideId) {
+        try {
+            const res = await fetch(`/api/rides/${rideId}/passengers`);
+            const passengers = await res.json();
+            const container = document.getElementById('passengers-section');
+            
+            if (passengers.length === 0) {
+                container.innerHTML = '<div class="text-center py-8 text-gray-500">{{ _("No passengers booked for this ride.") }}</div>';
+                return;
+            }
+            
+            container.innerHTML = `
+                <div class="space-y-3">
+                    ${passengers.map(passenger => `
+                        <div class="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+                            <div>
+                                <div class="font-semibold">${passenger.name}</div>
+                                <div class="text-sm text-gray-600">${passenger.phone}</div>
+                                <div class="text-sm">
+                                    <span class="inline-block px-2 py-1 rounded text-xs font-semibold 
+                                        ${passenger.booking_status === 'confirmed' ? 'bg-green-100 text-green-800' : 
+                                          'bg-yellow-100 text-yellow-800'}">
+                                        ${passenger.booking_status}
+                                    </span>
+                                    <span class="ml-2 text-gray-600">${passenger.seats_requested} seat(s)</span>
+                                </div>
+                            </div>
+                            <button onclick="openChat(${passenger.passenger_id}, '${passenger.name}')" 
+                                    class="bg-blue-500 text-white px-3 py-2 rounded-lg hover:bg-blue-600 text-sm">
+                                <i class="fas fa-comment"></i> {{ _('Chat') }}
+                            </button>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        } catch (error) {
+            console.error('Error loading passengers:', error);
+        }
+    }
+
+    // Open chat modal
+    function openChat(passengerId, passengerName) {
+        currentPassengerId = passengerId;
+        document.getElementById('chatTitle').textContent = `{{ _('Chat with') }} ${passengerName}`;
+        document.getElementById('chatModal').classList.remove('hidden');
+        document.getElementById('messageInput').focus();
+        
+        // Join private chat room
+        if (socket) {
+            socket.emit('join_private_chat', { other_user_id: passengerId });
+        }
+        
+        loadMessages(passengerId);
+    }
+
+    // Close chat modal
+    function closeChat() {
+        document.getElementById('chatModal').classList.add('hidden');
+        currentPassengerId = null;
+        document.getElementById('chatMessages').innerHTML = '';
+    }
+
+    // Load messages for a conversation
+    async function loadMessages(passengerId) {
+        try {
+            const res = await fetch(`/api/messages/conversation/${passengerId}`);
+            const messages = await res.json();
+            const container = document.getElementById('chatMessages');
+            
+            container.innerHTML = messages.map(msg => `
+                <div class="flex ${msg.sender_id === passengerId ? 'justify-start' : 'justify-end'}">
+                    <div class="max-w-xs px-4 py-2 rounded-lg ${
+                        msg.sender_id === passengerId 
+                            ? 'bg-gray-200 text-gray-800' 
+                            : 'bg-blue-500 text-white'
+                    }">
+                        <div class="text-sm">${msg.content}</div>
+                        <div class="text-xs mt-1 ${msg.sender_id === passengerId ? 'text-gray-600' : 'text-blue-100'}">
+                            ${new Date(msg.sent_at).toLocaleTimeString()}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            // Scroll to bottom
+            container.scrollTop = container.scrollHeight;
+        } catch (error) {
+            console.error('Error loading messages:', error);
+        }
+    }
+
+    // Send a message
+    async function sendMessage() {
+        const input = document.getElementById('messageInput');
+        const content = input.value.trim();
+        
+        if (!content || !currentPassengerId || !currentRideId) return;
+        
+        // Use Socket.IO for real-time messaging
+        if (socket) {
+            socket.emit('send_private_message', {
+                receiver_id: currentPassengerId,
+                ride_id: currentRideId,
+                content: content
+            });
+            input.value = '';
+        } else {
+            // Fallback to HTTP if socket is not available
+            try {
+                const res = await fetch('/api/messages/send', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...csrfHeaders()
+                    },
+                    body: JSON.stringify({
+                        receiver_id: currentPassengerId,
+                        ride_id: currentRideId,
+                        content: content
+                    })
+                });
+                
+                if (res.ok) {
+                    input.value = '';
+                    loadMessages(currentPassengerId);
+                } else {
+                    const err = await res.json();
+                    alert(err.error || '{{ _("Failed to send message") }}');
+                }
+            } catch (error) {
+                console.error('Error sending message:', error);
+                alert('{{ _("Failed to send message") }}');
+            }
+        }
+    }
+
+    // Mark ride as completed
+    async function markAsCompleted(rideId) {
+        if (!confirm('{{ _("Are you sure you want to mark this ride as completed? This action cannot be undone.") }}')) {
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/rides/${rideId}/complete`, {
+                method: 'POST',
+                headers: csrfHeaders()
+            });
+
+            if (res.ok) {
+                const result = await res.json();
+                alert(`{{ _('Ride completed successfully!') }}\n${result.message}`);
+                loadRides(); // Refresh the rides list
+                loadPassengers(rideId); // Refresh passengers
+            } else {
+                const err = await res.json();
+                alert(err.error || '{{ _("Failed to mark ride as completed") }}');
+            }
+        } catch (error) {
+            console.error('Error marking ride as completed:', error);
+            alert('{{ _("Failed to mark ride as completed. Please try again.") }}');
+        }
+    }
+
+    // CSRF headers helper function
+    function csrfHeaders() {
+        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        return token ? {
+            'X-CSRFToken': token,
+            'Content-Type': 'application/json'
+        } : {
+            'Content-Type': 'application/json'
+        };
+    }
+
+    // Load user ratings
+    async function loadRatings() {
+        try {
+            const res = await fetch(`/api/ratings/user-ratings/{{ current_user.user_id }}`);
+            const data = await res.json();
+            
+            const container = document.getElementById('ratings-section');
+            
+            if (data.total_ratings === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-star text-4xl mb-2"></i>
+                        <p>{{ _('No ratings yet') }}</p>
+                        <p class="text-sm">{{ _('Complete rides to get rated by passengers') }}</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Display average rating and ratings list
+            container.innerHTML = `
+                <div class="mb-6">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-lg font-semibold">{{ _('Average Rating') }}</h3>
+                        <span class="text-2xl font-bold text-yellow-500">${data.average_rating}</span>
+                    </div>
+                    <div class="flex gap-1 mb-2">
+                        ${[1,2,3,4,5].map(star => `
+                            <i class="fas fa-star text-lg ${star <= Math.round(data.average_rating) ? 'text-yellow-400' : 'text-gray-300'}"></i>
+                        `).join('')}
+                    </div>
+                    <p class="text-sm text-gray-600">{{ _('Based on') }} ${data.total_ratings} {{ _('ratings') }}</p>
+                </div>
+                
+                <div class="space-y-3">
+                    <h4 class="font-semibold text-gray-700">{{ _('Recent Ratings') }}</h4>
+                    ${data.ratings.slice(0, 5).map(rating => `
+                        <div class="border rounded-lg p-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-2">
+                                    <div class="flex gap-1">
+                                        ${[1,2,3,4,5].map(star => `
+                                            <i class="fas fa-star text-sm ${star <= rating.rating_value ? 'text-yellow-400' : 'text-gray-300'}"></i>
+                                        `).join('')}
+                                    </div>
+                                    <span class="font-medium">${rating.reviewer_name}</span>
+                                </div>
+                                <span class="text-xs text-gray-500">${new Date(rating.created_at).toLocaleDateString()}</span>
+                            </div>
+                            <p class="text-sm text-gray-600 mb-1">
+                                <i class="fas fa-route text-xs mr-1"></i>
+                                ${rating.ride_origin} → ${rating.ride_destination}
+                            </p>
+                            ${rating.comment ? `<p class="text-sm text-gray-700 italic">"${rating.comment}"</p>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+        } catch (error) {
+            console.error('Error loading ratings:', error);
+            document.getElementById('ratings-section').innerHTML = `
+                <div class="text-center py-8 text-red-500">
+                    <p>{{ _('Failed to load ratings') }}</p>
+                </div>
+            `;
+        }
+    }
+
+    // Handle Enter key in message input
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeSocket();
+        loadRides();
+        loadRatings();
+        
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    });
+</script>
+{% endblock %}
